@@ -189,10 +189,10 @@ struct AssistedMnemonicView: View {
             // Art stays a placeholder slot — one scene image per arbitrary
             // word is not something we can pre-make.
             dlog("Candidates shown for '\(digits)'. AI available: \(MajorLLMService.isAppleIntelligenceAvailable). Reason: '\(MajorLLMService.unavailableReason)'.")
-            if MajorLLMService.isAppleIntelligenceAvailable && aiAttemptedDigits != digits {
+            if (MajorLLMService.isAppleIntelligenceAvailable || GeminiService.hasKey) && aiAttemptedDigits != digits {
                 Task { await runAICandidates() }
-            } else if !MajorLLMService.isAppleIntelligenceAvailable {
-                dlog("Skipping AI (unavailable) — algorithmic candidates stand.")
+            } else if !MajorLLMService.isAppleIntelligenceAvailable && !GeminiService.hasKey {
+                dlog("Skipping AI (none available) — algorithmic candidates stand.")
             }
         }
     }
@@ -201,11 +201,11 @@ struct AssistedMnemonicView: View {
 
     @ViewBuilder
     private var aiStatusRow: some View {
-        if MajorLLMService.isAppleIntelligenceAvailable {
+        if MajorLLMService.isAppleIntelligenceAvailable || GeminiService.hasKey {
             if aiLoading {
                 HStack(spacing: 10) {
                     ProgressView().tint(.white)
-                    Text("Asking Apple Intelligence for words…")
+                    Text("Asking AI for words…")
                         .font(.subheadline).foregroundColor(.white.opacity(0.8))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,7 +215,7 @@ struct AssistedMnemonicView: View {
                     Text(err).font(.caption).foregroundColor(.orange)
                         .multilineTextAlignment(.center)
                 }
-                Button(aiAttemptedDigits == nil ? "Suggest words with Apple Intelligence" : "Regenerate suggestions") {
+                Button(aiAttemptedDigits == nil ? "Suggest words with AI" : "Regenerate suggestions") {
                     Task { await runAICandidates() }
                 }
                 .font(.subheadline.bold()).foregroundColor(.black)
@@ -223,56 +223,77 @@ struct AssistedMnemonicView: View {
                 .background(Color.white).cornerRadius(12)
             }
         } else {
-            Text("Apple Intelligence is off on this device — showing built-in words for now.")
+            Text("No AI available here (Apple Intelligence off, no Gemini key) — showing built-in words.")
                 .font(.caption).foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
         }
     }
 
+    /// Provider chain: Apple Intelligence → Gemini (dev key) →
+    /// bundled-database algorithmic (always works). Every proposed word
+    /// is verified on-device; failures fall through with debug logging.
     private func runAICandidates() async {
         let target = digits
         guard !target.isEmpty else {
             dlog("AI fetch skipped — no digits in fact.")
             return
         }
-        dlog("AI fetch started — fact: '\(factText.prefix(60))', digits: '\(target)'.")
+        dlog("AI fetch started — fact: '\(factText.prefix(60))', digits: '\(target)'. Apple available: \(MajorLLMService.isAppleIntelligenceAvailable). Gemini key: \(GeminiService.hasKey ? "present" : "absent").")
         aiLoading = true
         aiError = nil
         defer { aiLoading = false }
-        do {
-            let raw = try await MajorLLMService.generateCandidates(fact: factText, digits: target)
-            dlog("AI returned \(raw.count) raw candidate(s): \(raw.map { $0.word }.joined(separator: ", ")).")
-            var valid: [MockCandidate] = []
-            for c in raw {
-                let trimmed = c.word.trimmingCharacters(in: .whitespaces)
-                let single = !trimmed.contains(" ")
-                // Real CMU phonetics first; naive encoder only when the
-                // bundled database does not know the word at all.
-                let code = MajorTools.digits(for: trimmed) ?? MajorSystem.digits(for: trimmed)
-                let via = MajorTools.digits(for: trimmed) == nil ? "naive" : "db"
-                if single && code == target {
-                    dlog("ACCEPT '\(c.word)' via \(via) — code \(code) matches \(target).")
-                    valid.append(MockCandidate(word: c.word, tie: c.tie))
-                } else {
-                    dlog("REJECT '\(c.word)' via \(via) — single=\(single), code '\(code)' vs '\(target)'.")
-                }
-                if valid.count == 3 { break }
+
+        var raw: [(word: String, tie: String)] = []
+        var provider = "none"
+        if MajorLLMService.isAppleIntelligenceAvailable {
+            do {
+                raw = try await MajorLLMService.generateCandidates(fact: factText, digits: target).map { ($0.word, $0.tie) }
+                provider = "Apple Intelligence"
+                dlog("Apple Intelligence returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
+            } catch {
+                dlog("Apple Intelligence threw: \(error.localizedDescription). Trying next provider.")
             }
-            aiAttemptedDigits = target
-            if valid.isEmpty {
-                candidates = algorithmicCandidates(digits: target)
-                aiError = "Apple Intelligence returned no usable words — fell back to built-in search (\(candidates.count) word(s))."
-                dlog("AI yielded 0 valid — algorithmic fallback engaged (\(candidateSource), \(candidates.count)).")
+        } else {
+            dlog("Apple Intelligence unavailable: '\(MajorLLMService.unavailableReason)'.")
+        }
+        if raw.isEmpty && GeminiService.hasKey {
+            do {
+                raw = try await GeminiService.generateCandidates(fact: factText, digits: target).map { ($0.word, $0.tie) }
+                provider = "Gemini (\(GeminiService.defaultModel))"
+                dlog("Gemini returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
+            } catch {
+                dlog("Gemini threw: \(error.localizedDescription). Falling back to algorithm.")
+            }
+        } else if raw.isEmpty {
+            dlog("Gemini skipped (no API key in Config/Secrets.xcconfig).")
+        }
+
+        var valid: [MockCandidate] = []
+        for c in raw {
+            let trimmed = c.word.trimmingCharacters(in: .whitespaces)
+            let single = !trimmed.contains(" ")
+            // Real CMU phonetics first; naive encoder only when the
+            // bundled database does not know the word at all.
+            let code = MajorTools.digits(for: trimmed) ?? MajorSystem.digits(for: trimmed)
+            let via = MajorTools.digits(for: trimmed) == nil ? "naive" : "db"
+            if single && code == target {
+                dlog("ACCEPT '\(c.word)' via \(via) — code \(code) matches \(target).")
+                valid.append(MockCandidate(word: c.word, tie: c.tie))
             } else {
-                candidates = valid
-                candidateSource = "Apple Intelligence (\(valid.count) verified)"
-                dlog("Showing \(valid.count) AI word(s), all verified on-device.")
+                dlog("REJECT '\(c.word)' via \(via) — single=\(single), code '\(code)' vs '\(target)'.")
             }
-        } catch {
-            aiAttemptedDigits = target
+            if valid.count == 3 { break }
+        }
+        aiAttemptedDigits = target
+        if valid.isEmpty {
             candidates = algorithmicCandidates(digits: target)
-            aiError = "Apple Intelligence failed (\(error.localizedDescription)) — fell back to built-in search."
-            dlog("AI threw: \(error.localizedDescription). Fallback: \(candidateSource) (\(candidates.count)).")
+            let tried = provider == "none" ? "no AI provider ran" : "\(provider) gave nothing usable"
+            aiError = "\(tried.prefix(1).uppercased() + tried.dropFirst()) — fell back to built-in search (\(candidates.count) word(s))."
+            dlog("0 valid from AI — algorithmic fallback engaged (\(candidateSource), \(candidates.count)).")
+        } else {
+            candidates = valid
+            candidateSource = "\(provider) (\(valid.count) verified)"
+            dlog("Showing \(valid.count) \(provider) word(s), all verified on-device.")
         }
     }
 

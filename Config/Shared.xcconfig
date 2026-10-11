@@ -1,0 +1,4 @@
+// Committed base config. Secrets.xcconfig is gitignored; the ?-include
+// silently skips it when absent (fresh clones, judges' builds), in which
+// case $(GEMINI_API_KEY) simply expands to empty and Gemini is skipped.
+#include? "Secrets.xcconfig"
