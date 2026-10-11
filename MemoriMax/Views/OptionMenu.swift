@@ -68,7 +68,7 @@ struct OptionMenu: View {
                     // so the whole card is tappable and VoiceOver-safe).
                     GradientNavLink(title: "Major System", destination: MajorIntroView())
 
-                    GradientNavLink(title: "Gallery", destination: GalleryView())
+                    GradientNavLink(title: "Gallery", destination: GalleryScreen())
 
                     GradientButton(title: "Grateful Page",
                                 shadowStartColor: .white,
