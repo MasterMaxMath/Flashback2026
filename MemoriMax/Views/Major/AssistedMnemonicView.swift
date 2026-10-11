@@ -7,8 +7,9 @@ import UIKit
 // words; every word is re-checked on-device, and any AI failure falls
 // back to guaranteed algorithmic candidates. A debug log panel records
 // each step. Debug lines append to /tmp/memorydebug.log.
-// Scene art: one Gemini illustration per chosen scene (manual trigger,
-// dev key required); otherwise a placeholder slot.
+// Scene art: one illustration per chosen scene (manual trigger) —
+// Cloudflare Workers AI when its credentials exist, else Gemini image,
+// else a placeholder slot.
 
 struct MockCandidate: Identifiable, Hashable {
     let word: String
@@ -52,6 +53,11 @@ struct AssistedMnemonicView: View {
     @State private var imageAttempted = false
     @State private var aiAttemptedDigits: String? = nil
     @State private var candidateSource = "none yet"
+
+    /// True when any image backend is configured (Cloudflare preferred).
+    private static var sceneImageAvailable: Bool {
+        CloudflareImageService.hasCredentials || GeminiService.hasKey
+    }
 
     /// File debug log: appends timestamped lines to /tmp/memorydebug.log
     /// (falls back to the app temp dir if /tmp is unwritable) + console.
@@ -338,7 +344,7 @@ struct AssistedMnemonicView: View {
                 HStack(spacing: 12) {
                     Button("Again") {
                         artVariant += 1
-                        if GeminiService.hasKey {
+                        if Self.sceneImageAvailable {
                             Task { await runSceneImage(for: c) }
                         }
                     }
@@ -384,7 +390,7 @@ struct AssistedMnemonicView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding().cardStyle()
-        } else if GeminiService.hasKey {
+        } else if Self.sceneImageAvailable {
             VStack(spacing: 6) {
                 if let err = imageError {
                     Text(err).font(.caption).foregroundColor(.orange)
@@ -408,19 +414,25 @@ struct AssistedMnemonicView: View {
     }
 
     /// Manual image fetch: one picture per scene, stale art cleared first.
+    /// Cloudflare Workers AI when configured, otherwise Gemini image.
     private func runSceneImage(for c: MockCandidate) async {
-        dlog("Scene image requested — word: '\(c.word)', fact: '\(factText.prefix(50))'.")
+        let provider = CloudflareImageService.hasCredentials ? "Cloudflare" : "Gemini"
+        dlog("Scene image requested (\(provider)) — word: '\(c.word)', fact: '\(factText.prefix(50))'.")
         imageLoading = true
         imageError = nil
         imageAttempted = true
         sceneImageData = nil
         defer { imageLoading = false }
         do {
-            sceneImageData = try await GeminiService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
-            dlog("Scene image ready — \(sceneImageData?.count ?? 0) bytes.")
+            if CloudflareImageService.hasCredentials {
+                sceneImageData = try await CloudflareImageService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
+            } else {
+                sceneImageData = try await GeminiService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
+            }
+            dlog("Scene image ready (\(provider)) — \(sceneImageData?.count ?? 0) bytes.")
         } catch {
             imageError = "Illustration failed (\(error.localizedDescription)) — you can still tap Good."
-            dlog("Scene image failed: \(error.localizedDescription).")
+            dlog("Scene image failed (\(provider)): \(error.localizedDescription).")
         }
     }
 
