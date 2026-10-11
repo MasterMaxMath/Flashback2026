@@ -1,5 +1,24 @@
 import Foundation
 
+// MARK: - Shared AI debug log (same file the UI's dlog writes)
+
+enum AIDebugLog {
+    static func write(_ message: String) {
+        let time = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        print("[AITool] \(message)")
+        let line = "[\(time)] \(message)\n"
+        for path in ["/tmp/memorydebug.log", NSTemporaryDirectory() + "memorydebug.log"] {
+            if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: path)) {
+                handle.seekToEndOfFile()
+                handle.write(line.data(using: .utf8) ?? Data())
+                try? handle.close()
+                return
+            }
+            if FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8)) { return }
+        }
+    }
+}
+
 #if canImport(FoundationModels)
 import FoundationModels
 
@@ -19,6 +38,34 @@ struct WordCandidate {
 struct CandidateList {
     @Guide(description: "Exactly three candidate words")
     var candidates: [WordCandidate]
+}
+
+// MARK: - to_words tool (bundled 62k-word phonetic database as a model tool)
+
+@available(iOS 26.0, *)
+struct ToWordsTool: Tool {
+    let name = "to_words"
+    let description = """
+    Looks up real Major System words whose consonant codes equal the given \
+    digits, from the app's bundled 62,000-word phonetic database. ALWAYS \
+    call this with the target digits before suggesting words, and suggest \
+    words ONLY from what it returns — never invent words yourself.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The digit string to look up, e.g. 212")
+        var digits: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let rows = MajorTools.to_words(arguments.digits, limit: 15)
+        AIDebugLog.write("Apple called to_words('\(arguments.digits)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
+        guard !rows.isEmpty else {
+            return "No exact single-word matches for \(arguments.digits)."
+        }
+        return rows.map(\.word).joined(separator: ", ")
+    }
 }
 #endif
 
@@ -86,24 +133,27 @@ enum MajorLLMService {
     }
 
     /// Asks Apple Intelligence for 3 single Major words for the fact's
-    /// number, each with a one-line tie to the fact. Results are NOT
-    /// trusted blindly — callers must re-check each word with
-    /// `MajorSystem.digits(for:)` and drop anything that mismatches.
+    /// number. The model MUST call the `to_words` tool (bundled database)
+    /// for the digits and pick only from its results. Results are still
+    /// re-checked by callers — trust, but verify.
     @available(iOS 26.0, *)
     static func generateCandidates(fact: String, digits: String) async throws -> [AICandidate] {
         #if canImport(FoundationModels)
         let instructions = """
         You turn numbers into Major System words. Mapping: 0=S/Z, 1=T/D/TH, \
         2=N, 3=M, 4=R, 5=L, 6=SH/CH/J/soft-G, 7=K/hard-C/hard-G/Q, 8=F/V/PH, \
-        9=P/B. Vowels and W/H/Y count for nothing and are skipped. The \
-        consonant codes of each word, read left to right, must equal the \
-        target digits exactly. Reply with single words only, never phrases.
+        9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
+        a tool called to_words that searches a 62,000-word phonetic \
+        database. ALWAYS call to_words with the target digits before \
+        answering, and suggest words ONLY from what it returns. Reply with \
+        single words only, never phrases.
         """
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(tools: [ToWordsTool()], instructions: instructions)
         let prompt = """
-        Fact to memorize: "\(fact)". Its number is \(digits). Suggest exactly \
-        3 single Major System words whose codes equal \(digits). For each word, \
-        write a one-line tie to the fact explaining why it fits.
+        Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
+        with "\(digits)", then suggest exactly 3 single words from its \
+        results. For each word, write a one-line tie to the fact explaining \
+        why it fits.
         """
         let response = try await session.respond(to: prompt, generating: CandidateList.self)
         return response.content.candidates.map { AICandidate(word: $0.word, tie: $0.tie) }
