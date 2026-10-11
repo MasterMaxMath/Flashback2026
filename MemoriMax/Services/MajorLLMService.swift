@@ -147,10 +147,11 @@ enum MajorLLMService {
         9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
         a tool called to_words that searches a 62,000-word phonetic \
         database. ALWAYS call to_words with the target digits before \
-        answering, and suggest words ONLY from what it returns. You may \
-        call to_words several times, reasoning between calls: first the \
-        full number, then shorter chunks (2-4 digits) if there is no exact \
-        match. Reply with single words only, never phrases.
+        answering, and suggest words ONLY from what it returns. Worked \
+        examples: 404 lives in "razor" (R-Z-R), 431 lives in "remote" \
+        (R-M-T). You may call to_words several times, reasoning between \
+        calls: first the full number, then shorter chunks (2-4 digits) if \
+        there is no exact match. Reply with single words only, never phrases.
         """
         let session = LanguageModelSession(tools: [ToWordsTool()], instructions: instructions)
         let prompt = """
