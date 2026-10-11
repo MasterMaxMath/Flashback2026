@@ -226,9 +226,15 @@ enum GeminiService {
             ])
         }
         let prompt = """
-        Cheerful children's picture-book illustration, no words or letters \
-        anywhere in the image. Scene: \(tie). It features "\(word)" and \
-        helps remember this fact: "\(fact)".
+        Cheerful children's picture-book illustration. STRICT RULE: absolutely \
+        no text, words, letters, numbers, captions, labels, signs, or \
+        watermarks anywhere in the image — purely visual, no typography at \
+        all. ONE single unmistakable hero subject dominates the center of \
+        the frame, drawn LARGE so it fills much of the picture: "\(word)". \
+        Around it, a simple vivid scene showing this action: \(tie). The \
+        scene illustrates this fact: "\(fact)". Keep the background simple \
+        and uncluttered so the hero subject stands out; bold shapes, bright \
+        colors, clear silhouette.
         """
         let body: [String: Any] = [
             "contents": [["role": "user", "parts": [["text": prompt]]]],
