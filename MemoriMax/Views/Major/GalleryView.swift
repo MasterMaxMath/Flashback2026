@@ -42,6 +42,10 @@ struct GalleryView: View {
                 Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
                     .font(.subheadline).foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center).padding().cardStyle()
+                Button("Restore demo cards") {
+                    Self.seedIfNeeded(context: modelContext)
+                }
+                .font(.subheadline.bold()).foregroundColor(.white.opacity(0.7))
             } else {
                 ForEach(cards) { card in
                     VStack(alignment: .leading, spacing: 8) {
