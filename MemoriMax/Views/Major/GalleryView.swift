@@ -75,24 +75,24 @@ struct GalleryView: View {
         .onAppear { Self.seedIfNeeded(context: modelContext) }
     }
 
-    /// First-launch demo content (tutorial dates), inserted once ever so
-    /// the gallery never greets a judge empty. Never re-seeds after the
-    /// user clears it.
+    /// Demo content (tutorial dates). For now these are ALWAYS present:
+    /// every visit re-inserts any missing ones, so the gallery never
+    /// sits empty during development and judging.
     static func seedIfNeeded(context: ModelContext) {
-        guard !UserDefaults.standard.bool(forKey: "gallerySeededV1") else { return }
-        UserDefaults.standard.set(true, forKey: "gallerySeededV1")
-        let existing = (try? context.fetchCount(FetchDescriptor<GalleryCard>())) ?? -1
-        AIDebugLog.write("Gallery seed check — existing cards: \(existing).")
-        guard existing == 0 else { return }
-        context.insert(GalleryCard(
-            fact: "The Peloponnesian War began in 431 BC",
-            digits: "431", word: "remote",
-            tie: "Remote lands clashed — 431 opens the war"))
-        context.insert(GalleryCard(
-            fact: "The Peloponnesian War ended in 404 BC",
-            digits: "404", word: "razor",
-            tie: "Decided on a razor's edge — 404 closes the war"))
-        try? context.save()
+        let demos = [
+            ("The Peloponnesian War began in 431 BC",
+             "431", "remote", "Remote lands clashed — 431 opens the war"),
+            ("The Peloponnesian War ended in 404 BC",
+             "404", "razor", "Decided on a razor's edge — 404 closes the war")
+        ]
+        let existingFacts = Set((try? context.fetch(FetchDescriptor<GalleryCard>()))?.map(\.fact) ?? [])
+        var added = 0
+        for (fact, digits, word, tie) in demos where !existingFacts.contains(fact) {
+            context.insert(GalleryCard(fact: fact, digits: digits, word: word, tie: tie))
+            added += 1
+        }
+        if added > 0 { try? context.save() }
+        AIDebugLog.write("Gallery demo check — re-added \(added) card(s).")
     }
 }
 
