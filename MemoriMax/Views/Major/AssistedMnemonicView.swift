@@ -229,45 +229,10 @@ struct AssistedMnemonicView: View {
         }
     }
 
-    /// Provider chain: Apple Intelligence → Gemini (dev key) →
-    /// bundled-database algorithmic (always works). Every proposed word
-    /// is verified on-device; failures fall through with debug logging.
-    private func runAICandidates() async {
-        let target = digits
-        guard !target.isEmpty else {
-            dlog("AI fetch skipped — no digits in fact.")
-            return
-        }
-        dlog("AI fetch started — fact: '\(factText.prefix(60))', digits: '\(target)'. Apple available: \(MajorLLMService.isAppleIntelligenceAvailable). Gemini key: \(GeminiService.hasKey ? "present" : "absent").")
-        aiLoading = true
-        aiError = nil
-        defer { aiLoading = false }
-
-        var raw: [(word: String, tie: String)] = []
-        var provider = "none"
-        if MajorLLMService.isAppleIntelligenceAvailable {
-            do {
-                raw = try await MajorLLMService.generateCandidates(fact: factText, digits: target).map { ($0.word, $0.tie) }
-                provider = "Apple Intelligence"
-                dlog("Apple Intelligence returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
-            } catch {
-                dlog("Apple Intelligence threw: \(error.localizedDescription). Trying next provider.")
-            }
-        } else {
-            dlog("Apple Intelligence unavailable: '\(MajorLLMService.unavailableReason)'.")
-        }
-        if raw.isEmpty && GeminiService.hasKey {
-            do {
-                raw = try await GeminiService.generateCandidates(fact: factText, digits: target).map { ($0.word, $0.tie) }
-                provider = "Gemini (\(GeminiService.defaultModel))"
-                dlog("Gemini returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
-            } catch {
-                dlog("Gemini threw: \(error.localizedDescription). Falling back to algorithm.")
-            }
-        } else if raw.isEmpty {
-            dlog("Gemini skipped (no API key in Config/Secrets.xcconfig).")
-        }
-
+    /// Checks provider-proposed words on-device: single word only, and its
+    /// code (bundled CMU phonetics first, naive encoder as backup) must
+    /// equal the target digits exactly. Returns at most 3 survivors.
+    private func verify(_ raw: [(word: String, tie: String)], against target: String) -> [MockCandidate] {
         var valid: [MockCandidate] = []
         for c in raw {
             let trimmed = c.word.trimmingCharacters(in: .whitespaces)
@@ -284,6 +249,55 @@ struct AssistedMnemonicView: View {
             }
             if valid.count == 3 { break }
         }
+        return valid
+    }
+
+    /// Provider chain: Apple Intelligence → Gemini (dev key) →
+    /// bundled-database algorithmic (always works). Every proposed word
+    /// is verified on-device; failures fall through with debug logging.
+    private func runAICandidates() async {
+        let target = digits
+        guard !target.isEmpty else {
+            dlog("AI fetch skipped — no digits in fact.")
+            return
+        }
+        dlog("AI fetch started — fact: '\(factText.prefix(60))', digits: '\(target)'. Apple available: \(MajorLLMService.isAppleIntelligenceAvailable). Gemini key: \(GeminiService.hasKey ? "present" : "absent").")
+        aiLoading = true
+        aiError = nil
+        defer { aiLoading = false }
+
+        // Each provider is verified independently: if Apple returns words
+        // but none survive on-device checking, Gemini still gets a turn
+        // before the algorithmic fallback.
+        var valid: [MockCandidate] = []
+        var provider = "none"
+        if MajorLLMService.isAppleIntelligenceAvailable {
+            do {
+                let raw = try await MajorLLMService.generateCandidates(fact: factText, digits: target).map { (word: $0.word, tie: $0.tie) }
+                dlog("Apple Intelligence returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
+                valid = verify(raw, against: target)
+                if !valid.isEmpty { provider = "Apple Intelligence" }
+                else { dlog("Apple Intelligence gave nothing usable — trying next provider.") }
+            } catch {
+                dlog("Apple Intelligence threw: \(error.localizedDescription). Trying next provider.")
+            }
+        } else {
+            dlog("Apple Intelligence unavailable: '\(MajorLLMService.unavailableReason)'.")
+        }
+        if valid.isEmpty && GeminiService.hasKey {
+            do {
+                let raw = try await GeminiService.generateCandidates(fact: factText, digits: target).map { (word: $0.word, tie: $0.tie) }
+                dlog("Gemini returned \(raw.count): \(raw.map(\.word).joined(separator: ", ")).")
+                valid = verify(raw, against: target)
+                if !valid.isEmpty { provider = "Gemini (\(GeminiService.defaultModel))" }
+                else { dlog("Gemini gave nothing usable — falling back to algorithm.") }
+            } catch {
+                dlog("Gemini threw: \(error.localizedDescription). Falling back to algorithm.")
+            }
+        } else if valid.isEmpty {
+            dlog("Gemini skipped (no API key in Config/Secrets.xcconfig).")
+        }
+
         aiAttemptedDigits = target
         if valid.isEmpty {
             candidates = algorithmicCandidates(digits: target)
