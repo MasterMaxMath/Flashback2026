@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UIKit
 
 // MARK: - Assisted mnemonic flow
@@ -15,15 +16,6 @@ struct MockCandidate: Identifiable, Hashable {
     let word: String
     let tie: String
     var id: String { word }
-}
-
-struct SavedMnemonicCard: Identifiable {
-    let id = UUID()
-    let fact: String
-    let digits: String
-    let word: String
-    let tie: String
-    let imageData: Data?
 }
 
 struct AssistedMnemonicView: View {
@@ -44,7 +36,8 @@ struct AssistedMnemonicView: View {
     @State private var candidates: [MockCandidate] = []
     @State private var selected: MockCandidate? = nil
     @State private var artVariant = 1
-    @State private var gallery: [SavedMnemonicCard] = []
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \GalleryCard.createdAt, order: .reverse) private var gallery: [GalleryCard]
     @State private var aiLoading = false
     @State private var aiError: String? = nil
     @State private var sceneImageData: Data? = nil
@@ -353,7 +346,9 @@ struct AssistedMnemonicView: View {
                         .background(Color.white.opacity(0.12)).cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3)))
                     Button("Good") {
-                        gallery.append(SavedMnemonicCard(fact: factText, digits: digits, word: c.word, tie: c.tie, imageData: sceneImageData))
+                        modelContext.insert(GalleryCard(fact: factText, digits: digits, word: c.word, tie: c.tie, imageData: sceneImageData))
+                        try? modelContext.save()
+                        dlog("Saved to gallery — '\(c.word)' for '\(factText.prefix(50))' (\(gallery.count + 1) total).")
                         step = .gallery
                     }
                     .font(.headline).foregroundColor(.black)
@@ -445,7 +440,7 @@ struct AssistedMnemonicView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if gallery.isEmpty {
-                Text("Nothing saved yet — tap Good on a scene to keep it here.")
+                Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
                     .font(.subheadline).foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center).padding().cardStyle()
             } else {
@@ -468,6 +463,11 @@ struct AssistedMnemonicView: View {
                                 icon: "photo"
                             )
                         }
+                        Button("Remove", role: .destructive) {
+                            modelContext.delete(card)
+                            try? modelContext.save()
+                        }
+                        .font(.caption).foregroundColor(.red.opacity(0.85))
                     }
                     .padding().cardStyle()
                 }
@@ -546,4 +546,5 @@ struct AssistedMnemonicView: View {
 
 #Preview {
     NavigationStack { MajorGeneratorView() }
+        .modelContainer(for: GalleryCard.self, inMemory: true)
 }

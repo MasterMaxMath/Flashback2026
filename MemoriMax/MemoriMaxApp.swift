@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct MemoriMaxApp: App {
@@ -8,5 +9,6 @@ struct MemoriMaxApp: App {
                 Home()
             }
         }
+        .modelContainer(for: GalleryCard.self)
     }
 }
