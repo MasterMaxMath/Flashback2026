@@ -55,14 +55,17 @@ enum GeminiService {
         9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
         a function called to_words that searches a 62,000-word phonetic \
         database. ALWAYS call to_words with the target digits before \
-        answering, and suggest words ONLY from what it returns. Reply with \
-        single words only, never phrases.
+        answering, and suggest words ONLY from what it returns. You may \
+        call to_words several times, reasoning between calls: first the \
+        full number, then shorter chunks (2-4 digits) if there is no exact \
+        match. Reply with single words only, never phrases.
         """
         let prompt = """
         Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
-        with digits "\(digits)", then reply with exactly 3 single words from \
-        its results. For each word, write a one-line tie to the fact \
-        explaining why it fits.
+        with digits "\(digits)" — retry with shorter chunks if it finds \
+        nothing — then reply with exactly 3 single words from the gathered \
+        results. For each word, write a one-line tie to the fact explaining \
+        why it fits.
         """
         let toWordsDecl: [String: Any] = [
             "name": "to_words",
@@ -77,37 +80,61 @@ enum GeminiService {
             ]
         ]
 
-        // Turn 1: force a function call (mode ANY = the model MUST call to_words).
-        let turn1: [String: Any] = [
-            "system_instruction": ["parts": [["text": instructions]]],
-            "contents": [["role": "user", "parts": [["text": prompt]]]],
-            "tools": [["functionDeclarations": [toWordsDecl]]],
-            "toolConfig": ["functionCallingConfig": ["mode": "ANY"]]
-        ]
-        let parts1 = try await postToGemini(url: url, key: key, body: turn1)
-
-        // Find the to_words call and execute it locally against the bundled DB.
-        var calledDigits: String? = nil
-        var calledLimit = 15
-        for part in parts1 {
-            guard let fc = part["functionCall"] as? [String: Any],
-                  (fc["name"] as? String) == "to_words" else { continue }
-            let args = fc["args"] as? [String: Any] ?? [:]
-            calledDigits = args["digits"] as? String
-            if let lim = args["limit"] as? Int { calledLimit = lim }
-            else if let lim = args["limit"] as? Double { calledLimit = Int(lim) }
-            break
+        // Tool loop: round 1 forces a call (mode ANY); later rounds allow
+        // the model to reason over results and call again, or stop and
+        // answer (mode AUTO). Cap at 3 tool rounds, then demand the JSON.
+        var contents: [[String: Any]] = [["role": "user", "parts": [["text": prompt]]]]
+        let maxToolRounds = 3
+        var toolCallsMade = 0
+        var lastParts: [[String: Any]] = []
+        for round in 1...maxToolRounds {
+            let turn: [String: Any] = [
+                "system_instruction": ["parts": [["text": instructions]]],
+                "contents": contents,
+                "tools": [["functionDeclarations": [toWordsDecl]]],
+                "toolConfig": ["functionCallingConfig": ["mode": round == 1 ? "ANY" : "AUTO"]]
+            ]
+            let parts = try await postToGemini(url: url, key: key, body: turn)
+            lastParts = parts
+            let calls = parts.compactMap { $0["functionCall"] as? [String: Any] }
+                .filter { ($0["name"] as? String) == "to_words" }
+            if calls.isEmpty {
+                AIDebugLog.write("Gemini round \(round): no further tool call — asking for final answer.")
+                break
+            }
+            contents.append(["role": "model", "parts": parts])
+            var responses: [[String: Any]] = []
+            for call in calls {
+                let args = call["args"] as? [String: Any] ?? [:]
+                // The model sometimes sends digits as a number — accept both.
+                let rawDigits: String
+                if let s = args["digits"] as? String { rawDigits = s }
+                else if let n = args["digits"] as? Int { rawDigits = String(n) }
+                else if let n = args["digits"] as? Double { rawDigits = String(Int(n)) }
+                else { rawDigits = "" }
+                let lookup = rawDigits.filter(\.isWholeNumber)
+                var lim = 15
+                if let l = args["limit"] as? Int { lim = l }
+                else if let l = args["limit"] as? Double { lim = Int(l) }
+                lim = min(max(lim, 1), 30)
+                let rows: [ScoredWord] = lookup.isEmpty ? [] : MajorTools.to_words(lookup, limit: lim)
+                AIDebugLog.write("Gemini round \(round) to_words('\(lookup)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
+                toolCallsMade += 1
+                responses.append(["functionResponse": [
+                    "name": "to_words",
+                    "response": ["digits": lookup, "words": rows.map(\.word)]
+                ]])
+            }
+            contents.append(["role": "user", "parts": responses])
         }
-        guard let lookup = calledDigits, !lookup.isEmpty else {
-            // Model dodged the tool despite mode ANY — fall back to parsing
-            // its text directly (callers still verify every word).
+        if toolCallsMade == 0 {
+            // Mode ANY should guarantee at least one call — parse whatever
+            // text came back (callers still verify every word).
             AIDebugLog.write("Gemini skipped to_words despite mode ANY — parsing raw text.")
-            return try decodeCandidates(from: parts1)
+            return try decodeCandidates(from: lastParts)
         }
-        let rows = MajorTools.to_words(lookup, limit: calledLimit)
-        AIDebugLog.write("Gemini called to_words('\(lookup)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
 
-        // Turn 2: hand the rows back, demand the final JSON.
+        // Final round: no tools declared, strict JSON schema for the answer.
         let schema: [String: Any] = [
             "type": "OBJECT",
             "properties": [
@@ -125,22 +152,16 @@ enum GeminiService {
             ],
             "required": ["candidates"]
         ]
-        let turn2: [String: Any] = [
+        let final: [String: Any] = [
             "system_instruction": ["parts": [["text": instructions]]],
-            "contents": [
-                ["role": "user", "parts": [["text": prompt]]],
-                ["role": "model", "parts": parts1],
-                ["role": "user", "parts": [[
-                    "functionResponse": [
-                        "name": "to_words",
-                        "response": ["words": rows.map(\.word)]
-                    ]
-                ]]]
-            ],
+            "contents": contents + [["role": "user", "parts": [["text": """
+                Based on the to_words results above, reply with exactly 3 \
+                single words and a one-line tie to the fact for each.
+                """]]]],
             "generationConfig": ["responseMimeType": "application/json", "responseSchema": schema]
         ]
-        let parts2 = try await postToGemini(url: url, key: key, body: turn2)
-        return try decodeCandidates(from: parts2)
+        let finalParts = try await postToGemini(url: url, key: key, body: final)
+        return try decodeCandidates(from: finalParts)
     }
 
     /// POSTs one turn and returns the response's content parts.

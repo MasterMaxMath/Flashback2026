@@ -59,10 +59,12 @@ struct ToWordsTool: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let rows = MajorTools.to_words(arguments.digits, limit: 15)
-        AIDebugLog.write("Apple called to_words('\(arguments.digits)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
+        let lookup = arguments.digits.filter(\.isWholeNumber)
+        guard !lookup.isEmpty else { return "Invalid digits — pass digits like 212." }
+        let rows = MajorTools.to_words(lookup, limit: 15)
+        AIDebugLog.write("Apple called to_words('\(lookup)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
         guard !rows.isEmpty else {
-            return "No exact single-word matches for \(arguments.digits)."
+            return "No exact single-word matches for \(lookup) — try shorter chunks of its digits."
         }
         return rows.map(\.word).joined(separator: ", ")
     }
@@ -145,15 +147,17 @@ enum MajorLLMService {
         9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
         a tool called to_words that searches a 62,000-word phonetic \
         database. ALWAYS call to_words with the target digits before \
-        answering, and suggest words ONLY from what it returns. Reply with \
-        single words only, never phrases.
+        answering, and suggest words ONLY from what it returns. You may \
+        call to_words several times, reasoning between calls: first the \
+        full number, then shorter chunks (2-4 digits) if there is no exact \
+        match. Reply with single words only, never phrases.
         """
         let session = LanguageModelSession(tools: [ToWordsTool()], instructions: instructions)
         let prompt = """
         Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
-        with "\(digits)", then suggest exactly 3 single words from its \
-        results. For each word, write a one-line tie to the fact explaining \
-        why it fits.
+        with "\(digits)" — retry with shorter chunks if it finds nothing — \
+        then suggest exactly 3 single words from the gathered results. For \
+        each word, write a one-line tie to the fact explaining why it fits.
         """
         let response = try await session.respond(to: prompt, generating: CandidateList.self)
         return response.content.candidates.map { AICandidate(word: $0.word, tie: $0.tie) }
