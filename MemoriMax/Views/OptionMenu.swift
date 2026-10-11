@@ -68,11 +68,7 @@ struct OptionMenu: View {
                     // so the whole card is tappable and VoiceOver-safe).
                     GradientNavLink(title: "Major System", destination: MajorIntroView())
 
-                    GradientButton(title: "Bragging Page",
-                                shadowStartColor: .white,
-                                shadowEndColor: .black) {
-                        print("Speed Calculation selected")
-                    }
+                    GradientNavLink(title: "Gallery", destination: GalleryView())
 
                     GradientButton(title: "Grateful Page",
                                 shadowStartColor: .white,

@@ -435,43 +435,7 @@ struct AssistedMnemonicView: View {
 
     private var galleryStep: some View {
         VStack(spacing: 16) {
-            Text("GALLERY")
-                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if gallery.isEmpty {
-                Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
-                    .font(.subheadline).foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center).padding().cardStyle()
-            } else {
-                ForEach(gallery) { card in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(card.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(card.word).font(.headline).foregroundColor(.white)
-                            Text(card.tie).font(.caption).foregroundColor(.white.opacity(0.65))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10).background(Color.black.opacity(0.4)).cornerRadius(10)
-                        if let data = card.imageData, let img = UIImage(data: data) {
-                            Image(uiImage: img)
-                                .resizable().scaledToFit()
-                                .cornerRadius(10)
-                        } else {
-                            PlaceholderImageView(
-                                label: "SAVED ART: \(card.word.lowercased()) scene",
-                                icon: "photo"
-                            )
-                        }
-                        Button("Remove", role: .destructive) {
-                            modelContext.delete(card)
-                            try? modelContext.save()
-                        }
-                        .font(.caption).foregroundColor(.red.opacity(0.85))
-                    }
-                    .padding().cardStyle()
-                }
-            }
+            GalleryView()
 
             Button("New fact") {
                 factText = ""
