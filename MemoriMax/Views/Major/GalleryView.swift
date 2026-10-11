@@ -81,7 +81,8 @@ struct GalleryView: View {
     static func seedIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: "gallerySeededV1") else { return }
         UserDefaults.standard.set(true, forKey: "gallerySeededV1")
-        let existing = (try? context.fetchCount(FetchDescriptor<GalleryCard>())) ?? 1
+        let existing = (try? context.fetchCount(FetchDescriptor<GalleryCard>())) ?? -1
+        AIDebugLog.write("Gallery seed check — existing cards: \(existing).")
         guard existing == 0 else { return }
         context.insert(GalleryCard(
             fact: "The Peloponnesian War began in 431 BC",
