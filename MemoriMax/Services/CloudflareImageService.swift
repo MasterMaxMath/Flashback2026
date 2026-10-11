@@ -49,19 +49,24 @@ enum CloudflareImageService {
         Cheerful children's picture-book illustration. STRICT RULE: absolutely \
         no text, words, letters, numbers, captions, labels, signs, or \
         watermarks anywhere in the image — purely visual, no typography at \
-        all. ONE single unmistakable hero subject dominates the center of \
-        the frame, drawn LARGE so it fills much of the picture: "\(word)". \
-        Around it, a simple vivid scene showing this action: \(tie). The \
-        scene illustrates this fact: "\(fact)". Keep the background simple \
-        and uncluttered so the hero subject stands out; bold shapes, bright \
+        all. Anything that would normally carry writing (signs, books, \
+        labels, posters) must be rendered completely blank. ONE single \
+        unmistakable hero subject dominates the center of the frame, drawn \
+        LARGE so it fills much of the picture: "\(word)". Around it, a \
+        simple vivid scene showing this action: \(tie). The scene \
+        illustrates this fact: "\(fact)". Keep the background simple and \
+        uncluttered so the hero subject stands out; bold shapes, bright \
         colors, clear silhouette.
         """
+        // Note: flux models reject unevaluated properties, so there is no
+        // negative_prompt here — the no-text rule lives in the prompt text.
+        let body: [String: Any] = ["prompt": prompt]
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 120
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["prompt": prompt])
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
