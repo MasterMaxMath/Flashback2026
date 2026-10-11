@@ -11,6 +11,7 @@ import Foundation
 
 enum GeminiService {
     static let defaultModel = "gemini-3.5-flash-lite"
+    static let defaultImageModel = "gemini-3.1-flash-lite-image"
 
     struct AICandidate: Hashable {
         let word: String
@@ -201,5 +202,49 @@ enum GeminiService {
             ])
         }
         return list.candidates.map { AICandidate(word: $0.word, tie: $0.tie) }
+    }
+
+    // MARK: - Scene illustration (image model, one picture per mnemonic)
+
+    /// Generates one scene illustration (PNG bytes) for the chosen word.
+    /// Manual trigger from the scene-review step — never per-word, never
+    /// automatic — so quota stays under control. Throws code 6 when the
+    /// response carries no image (e.g. safety refusal or quota error,
+    /// which surfaces earlier as HTTP 429).
+    static func generateSceneImage(fact: String, word: String, tie: String,
+                                   model: String = defaultImageModel) async throws -> Data {
+        let key = apiKey
+        guard !key.isEmpty else {
+            throw NSError(domain: "Gemini", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "No Gemini API key configured (Config/Secrets.xcconfig)."
+            ])
+        }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+            throw NSError(domain: "Gemini", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Bad Gemini image model name: \(model)."
+            ])
+        }
+        let prompt = """
+        Cheerful children's picture-book illustration, no words or letters \
+        anywhere in the image. Scene: \(tie). It features "\(word)" and \
+        helps remember this fact: "\(fact)".
+        """
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": [["text": prompt]]]],
+            "generationConfig": ["responseModalities": ["TEXT", "IMAGE"]]
+        ]
+        let parts = try await postToGemini(url: url, key: key, body: body)
+        for part in parts {
+            guard let inline = part["inlineData"] as? [String: Any],
+                  let b64 = inline["data"] as? String,
+                  let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters) else { continue }
+            AIDebugLog.write("Gemini image (\(model)) → \(data.count) bytes (\(inline["mimeType"] as? String ?? "?")).")
+            return data
+        }
+        let text = parts.compactMap { $0["text"] as? String }.joined()
+        AIDebugLog.write("Gemini image returned no picture. Text: \(String(text.prefix(160))).")
+        throw NSError(domain: "Gemini", code: 6, userInfo: [
+            NSLocalizedDescriptionKey: "Image model returned no picture\(text.isEmpty ? "." : ": \(String(text.prefix(160)))")"
+        ])
     }
 }

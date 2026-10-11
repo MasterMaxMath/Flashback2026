@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Assisted mnemonic flow
 // Five states matching the wireframe: entry → fact → candidates →
@@ -6,7 +7,8 @@ import SwiftUI
 // words; every word is re-checked on-device, and any AI failure falls
 // back to guaranteed algorithmic candidates. A debug log panel records
 // each step. Debug lines append to /tmp/memorydebug.log.
-// Art stays a placeholder slot (no per-word image backend).
+// Scene art: one Gemini illustration per chosen scene (manual trigger,
+// dev key required); otherwise a placeholder slot.
 
 struct MockCandidate: Identifiable, Hashable {
     let word: String
@@ -20,6 +22,7 @@ struct SavedMnemonicCard: Identifiable {
     let digits: String
     let word: String
     let tie: String
+    let imageData: Data?
 }
 
 struct AssistedMnemonicView: View {
@@ -43,6 +46,10 @@ struct AssistedMnemonicView: View {
     @State private var gallery: [SavedMnemonicCard] = []
     @State private var aiLoading = false
     @State private var aiError: String? = nil
+    @State private var sceneImageData: Data? = nil
+    @State private var imageLoading = false
+    @State private var imageError: String? = nil
+    @State private var imageAttempted = false
     @State private var aiAttemptedDigits: String? = nil
     @State private var candidateSource = "none yet"
 
@@ -326,19 +333,21 @@ struct AssistedMnemonicView: View {
                 .padding().background(Color.white.opacity(0.08)).cornerRadius(14)
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.6)))
 
-                PlaceholderImageView(
-                    label: "SCENE ART v\(artVariant): \(c.word.lowercased()) scene for “\(factText.prefix(40))…”",
-                    icon: "photo"
-                )
+                sceneArtView(for: c)
 
                 HStack(spacing: 12) {
-                    Button("Again") { artVariant += 1 }
+                    Button("Again") {
+                        artVariant += 1
+                        if GeminiService.hasKey {
+                            Task { await runSceneImage(for: c) }
+                        }
+                    }
                         .font(.headline).foregroundColor(.white)
                         .frame(maxWidth: .infinity).padding()
                         .background(Color.white.opacity(0.12)).cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3)))
                     Button("Good") {
-                        gallery.append(SavedMnemonicCard(fact: factText, digits: digits, word: c.word, tie: c.tie))
+                        gallery.append(SavedMnemonicCard(fact: factText, digits: digits, word: c.word, tie: c.tie, imageData: sceneImageData))
                         step = .gallery
                     }
                     .font(.headline).foregroundColor(.black)
@@ -346,9 +355,72 @@ struct AssistedMnemonicView: View {
                     .background(Color.white).cornerRadius(12)
                 }
 
-                Button("Pick another word") { step = .candidates }
+                Button("Pick another word") {
+                    selected = nil
+                    sceneImageData = nil
+                    imageError = nil
+                    imageAttempted = false
+                    step = .candidates
+                }
                     .font(.subheadline.bold()).foregroundColor(.white.opacity(0.7))
             }
+        }
+    }
+
+    // MARK: - Scene art (one Gemini illustration per chosen scene)
+
+    @ViewBuilder
+    private func sceneArtView(for c: MockCandidate) -> some View {
+        if let data = sceneImageData, let img = UIImage(data: data) {
+            Image(uiImage: img)
+                .resizable().scaledToFit()
+                .cornerRadius(14)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.6)))
+        } else if imageLoading {
+            HStack(spacing: 10) {
+                ProgressView().tint(.white)
+                Text("Illustrating this scene…")
+                    .font(.subheadline).foregroundColor(.white.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding().cardStyle()
+        } else if GeminiService.hasKey {
+            VStack(spacing: 6) {
+                if let err = imageError {
+                    Text(err).font(.caption).foregroundColor(.orange)
+                        .multilineTextAlignment(.center)
+                }
+                Button(imageAttempted ? "Regenerate illustration" : "Illustrate this scene") {
+                    Task { await runSceneImage(for: c) }
+                }
+                .font(.subheadline.bold()).foregroundColor(.black)
+                .frame(maxWidth: .infinity).padding(12)
+                .background(Color.white).cornerRadius(12)
+                Text("One AI picture per scene — needs network + quota.")
+                    .font(.caption2).foregroundColor(.white.opacity(0.5))
+            }
+        } else {
+            PlaceholderImageView(
+                label: "SCENE ART v\(artVariant): \(c.word.lowercased()) scene for “\(factText.prefix(40))…”",
+                icon: "photo"
+            )
+        }
+    }
+
+    /// Manual image fetch: one picture per scene, stale art cleared first.
+    private func runSceneImage(for c: MockCandidate) async {
+        dlog("Scene image requested — word: '\(c.word)', fact: '\(factText.prefix(50))'.")
+        imageLoading = true
+        imageError = nil
+        imageAttempted = true
+        sceneImageData = nil
+        defer { imageLoading = false }
+        do {
+            sceneImageData = try await GeminiService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
+            dlog("Scene image ready — \(sceneImageData?.count ?? 0) bytes.")
+        } catch {
+            imageError = "Illustration failed (\(error.localizedDescription)) — you can still tap Good."
+            dlog("Scene image failed: \(error.localizedDescription).")
         }
     }
 
@@ -374,10 +446,16 @@ struct AssistedMnemonicView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10).background(Color.black.opacity(0.4)).cornerRadius(10)
-                        PlaceholderImageView(
-                            label: "SAVED ART: \(card.word.lowercased()) scene",
-                            icon: "photo"
-                        )
+                        if let data = card.imageData, let img = UIImage(data: data) {
+                            Image(uiImage: img)
+                                .resizable().scaledToFit()
+                                .cornerRadius(10)
+                        } else {
+                            PlaceholderImageView(
+                                label: "SAVED ART: \(card.word.lowercased()) scene",
+                                icon: "photo"
+                            )
+                        }
                     }
                     .padding().cardStyle()
                 }
@@ -387,6 +465,9 @@ struct AssistedMnemonicView: View {
                 factText = ""
                 candidates = []
                 selected = nil
+                sceneImageData = nil
+                imageError = nil
+                imageAttempted = false
                 step = .entry
             }
             .font(.headline).foregroundColor(.black)
