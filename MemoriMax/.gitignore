@@ -1,0 +1,14 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Secrets (Option B dev keys — never commit real keys)
+**/Secrets.xcconfig
+
+# Local debug log
+memorydebug.log
+/tmp/memorydebug.log

@@ -35,16 +35,6 @@
 			path = MemoriMax;
 			sourceTree = "<group>";
 		};
-		C2B88A853019330900CCA9A7 /* MemoriMaxTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MemoriMaxTests;
-			sourceTree = "<group>";
-		};
-		C2B88A8F3019330900CCA9A7 /* MemoriMaxUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MemoriMaxUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,8 +66,6 @@
 			isa = PBXGroup;
 			children = (
 				C2B88A773019330700CCA9A7 /* MemoriMax */,
-				C2B88A853019330900CCA9A7 /* MemoriMaxTests */,
-				C2B88A8F3019330900CCA9A7 /* MemoriMaxUITests */,
 				C2B88A763019330700CCA9A7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -130,9 +118,6 @@
 			dependencies = (
 				C2B88A843019330900CCA9A7 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				C2B88A853019330900CCA9A7 /* MemoriMaxTests */,
-			);
 			name = MemoriMaxTests;
 			packageProductDependencies = (
 			);
@@ -152,9 +137,6 @@
 			);
 			dependencies = (
 				C2B88A8E3019330900CCA9A7 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				C2B88A8F3019330900CCA9A7 /* MemoriMaxUITests */,
 			);
 			name = MemoriMaxUITests;
 			packageProductDependencies = (
