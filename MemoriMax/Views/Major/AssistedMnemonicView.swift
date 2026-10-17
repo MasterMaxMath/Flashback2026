@@ -46,6 +46,7 @@ struct AssistedMnemonicView: View {
     @State private var imageAttempted = false
     @State private var aiAttemptedDigits: String? = nil
     @State private var candidateSource = "none yet"
+    @State private var showTagSheet = false
 
     /// True when any image backend is configured (Cloudflare preferred).
     private static var sceneImageAvailable: Bool {
@@ -86,6 +87,14 @@ struct AssistedMnemonicView: View {
             case .scene: sceneStep
             case .gallery: galleryStep
             }
+        }
+        .sheet(isPresented: $showTagSheet) {
+            SaveTagSheet(
+                word: selected?.word ?? "",
+                fact: factText,
+                existingTags: Array(Set(gallery.map(\.tag))),
+                onSave: saveSelected
+            )
         }
     }
 
@@ -346,10 +355,7 @@ struct AssistedMnemonicView: View {
                         .background(Color.white.opacity(0.12)).cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3)))
                     Button("Good") {
-                        modelContext.insert(GalleryCard(fact: factText, digits: digits, word: c.word, tie: c.tie, imageData: sceneImageData))
-                        try? modelContext.save()
-                        dlog("Saved to gallery — '\(c.word)' for '\(factText.prefix(50))' (\(gallery.count + 1) total).")
-                        step = .gallery
+                        showTagSheet = true
                     }
                     .font(.headline).foregroundColor(.black)
                     .frame(maxWidth: .infinity).padding()
@@ -432,6 +438,20 @@ struct AssistedMnemonicView: View {
     }
 
     // MARK: - 5: Gallery
+
+    /// Inserts the accepted scene into the gallery under the chosen tag.
+    /// Art bytes ride along in `sceneImageData` (external storage).
+    private func saveSelected(tag: String) {
+        guard let c = selected else { return }
+        let asset = sceneImageData == nil ? "no art" : "\(sceneImageData!.count) bytes art"
+        modelContext.insert(GalleryCard(
+            fact: factText, digits: digits, word: c.word, tie: c.tie,
+            tag: tag, imageData: sceneImageData
+        ))
+        try? modelContext.save()
+        dlog("Saved to gallery → group '\(tag)' — '\(c.word)' for '\(factText.prefix(50))' (\(asset)).")
+        step = .gallery
+    }
 
     private var galleryStep: some View {
         VStack(spacing: 16) {
