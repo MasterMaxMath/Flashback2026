@@ -12,6 +12,10 @@ struct SaveTagSheet: View {
     /// Tags already in use (may be empty). "default" is always offered.
     let existingTags: [String]
     let onSave: (String) -> Void
+    /// Sheet heading (defaults to the save-at-acceptance wording).
+    var header: String = "SAVE MNEMONIC"
+    /// Label for the confirm button; defaults to "Save to "\(selected)"".
+    var confirmLabel: String? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var tags: [String] = ["default"]
@@ -29,7 +33,7 @@ struct SaveTagSheet: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("SAVE MNEMONIC")
+                    Text(header)
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -83,7 +87,7 @@ struct SaveTagSheet: View {
                             .disabled(trimmedNew.isEmpty)
                     }
 
-                    Button("Save to “\(selected)”") {
+                    Button(confirmLabel ?? "Save to “\(selected)”") {
                         onSave(selected)
                         dismiss()
                     }

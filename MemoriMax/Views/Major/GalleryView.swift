@@ -162,6 +162,12 @@ struct GalleryGroupView: View {
     let tag: String
     @Environment(\.modelContext) private var modelContext
     @Query private var cards: [GalleryCard]
+    /// Unfiltered, so the move sheet can offer every group name in use.
+    @Query private var allCards: [GalleryCard]
+
+    @State private var renameTarget: GalleryCard?
+    @State private var renameText = ""
+    @State private var moveTarget: GalleryCard?
 
     init(tag: String) {
         self.tag = tag
@@ -170,6 +176,10 @@ struct GalleryGroupView: View {
             filter: predicate,
             sort: [SortDescriptor(\GalleryCard.createdAt, order: .reverse)]
         )
+    }
+
+    private var allTags: [String] {
+        Array(Set(allCards.map(\.tag))).sorted()
     }
 
     var body: some View {
@@ -185,14 +195,8 @@ struct GalleryGroupView: View {
                             .padding().cardStyle()
                     } else {
                         ForEach(cards) { card in
-                            VStack(alignment: .leading, spacing: 8) {
-                                MnemonicCardView(card: card)
-                                Button("Remove", role: .destructive) {
-                                    modelContext.delete(card)
-                                    try? modelContext.save()
-                                }
-                                .font(.caption).foregroundColor(.red.opacity(0.85))
-                            }
+                            MnemonicCardView(card: card)
+                                .overlay(alignment: .topTrailing) { cardMenu(card) }
                         }
                     }
                 }
@@ -204,6 +208,71 @@ struct GalleryGroupView: View {
         .navigationTitle(tag)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .alert("Rename scene", isPresented: Binding(
+            get: { renameTarget != nil },
+            set: { if !$0 { renameTarget = nil } }
+        ), presenting: renameTarget) { _ in
+            TextField("Fact", text: $renameText)
+            Button("Save") {
+                if let target = renameTarget {
+                    let name = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !name.isEmpty { target.fact = name; try? modelContext.save() }
+                }
+                renameTarget = nil
+            }
+            Button("Cancel", role: .cancel) { renameTarget = nil }
+        } message: { _ in
+            Text("How the scene reads in the gallery.")
+        }
+        .sheet(isPresented: Binding(
+            get: { moveTarget != nil },
+            set: { if !$0 { moveTarget = nil } }
+        )) {
+            if let target = moveTarget {
+                SaveTagSheet(
+                    word: target.scene.first?.word ?? "Scene",
+                    fact: target.fact,
+                    existingTags: allTags,
+                    onSave: { picked in
+                        let name = picked.trimmingCharacters(in: .whitespacesAndNewlines)
+                        target.tag = name.isEmpty ? "default" : name
+                        try? modelContext.save()
+                    },
+                    header: "MOVE SCENE",
+                    confirmLabel: "Move to “\(target.scene.first?.word.lowercased() ?? "scene")”"
+                )
+            }
+        }
+    }
+
+    /// ⋯ menu pinned to the card's top-right: rename, move group, remove.
+    private func cardMenu(_ card: GalleryCard) -> some View {
+        Menu {
+            Button {
+                renameText = card.fact
+                renameTarget = card
+            } label: {
+                Label("Rename scene", systemImage: "pencil")
+            }
+            Button {
+                moveTarget = card
+            } label: {
+                Label("Move to another group…", systemImage: "folder")
+            }
+            Divider()
+            Button(role: .destructive) {
+                modelContext.delete(card)
+                try? modelContext.save()
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.title3)
+                .foregroundColor(.white.opacity(0.9))
+                .padding(4)
+                .background(Circle().fill(Color.black.opacity(0.55)))
+        }
     }
 }
 
