@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct Home: View {
     var body: some View {
@@ -56,4 +57,5 @@ struct Home: View {
     NavigationStack {
         Home()
     }
+    .modelContainer(for: GalleryCard.self, inMemory: true)
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Create mnemonics: manual algorithm search + assisted fact flow (UI stub)
 
@@ -150,4 +151,5 @@ struct MajorGeneratorView: View {
 
 #Preview {
     NavigationStack { MajorGeneratorView() }
+        .modelContainer(for: GalleryCard.self, inMemory: true)
 }

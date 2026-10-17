@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct GradientButton: View {
     let title: String
@@ -135,4 +136,5 @@ struct GradientNavLink<Destination: View>: View {
     NavigationStack {
         OptionMenu()
     }
+    .modelContainer(for: GalleryCard.self, inMemory: true)
 }

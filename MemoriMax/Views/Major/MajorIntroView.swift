@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Major System slideshow (15 minimal slides, memory-first)
 // The reader FEELS the arc: fail to hold bare digits → hold a movie with
@@ -532,4 +533,5 @@ extension View {
 
 #Preview {
     NavigationStack { MajorIntroView() }
+        .modelContainer(for: GalleryCard.self, inMemory: true)
 }
