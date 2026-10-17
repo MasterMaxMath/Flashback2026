@@ -6,7 +6,7 @@ struct MemoriMaxApp: App {
     private let container: ModelContainer
 
     init() {
-        let schema = Schema(versionedSchema: GallerySchemaV2.self)
+        let schema = Schema(versionedSchema: GallerySchemaV3.self)
         do {
             let container = try ModelContainer(
                 for: schema,

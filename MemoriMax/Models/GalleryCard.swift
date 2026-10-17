@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 // MARK: - A mnemonic card is a *scene*, not a number
 //
@@ -18,6 +19,14 @@ struct MnemonicBinding: Codable, Hashable {
 
 /// The app always works with the latest schema version.
 typealias GalleryCard = GallerySchemaV2.GalleryCard
+
+/// Preview-only in-memory store containing every app model, so previews that
+/// can reach the gallery (and the quizzes) never mix implicit stores.
+extension View {
+    func demoModelContainer() -> some View {
+        modelContainer(for: [GalleryCard.self, SavedQuiz.self], inMemory: true)
+    }
+}
 
 // MARK: - V1: single-number cards (fact + one digits/word/tie)
 
@@ -78,15 +87,25 @@ enum GallerySchemaV2: VersionedSchema {
     }
 }
 
-// MARK: - Migration V1 → V2
+// MARK: - V3: adds saved quizzes (GalleryCard itself is unchanged)
+
+enum GallerySchemaV3: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
+    static var models: [any PersistentModel.Type] { [GalleryCard.self, SavedQuiz.self] }
+}
+
+// MARK: - Migration
 //
-// Each old single-number card becomes a one-binding scene. The legacy columns
-// are dropped by the migration, so their values are read in `willMigrate` and
-// re-applied in `didMigrate`, matched on `createdAt` (which both versions keep).
+// V1 → V2 is custom (single-number cards → scenes). V2 → V3 is additive
+// (new QuizCard entity), handled by a lightweight migration.
 
 enum GalleryMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [GallerySchemaV1.self, GallerySchemaV2.self] }
-    static var stages: [MigrationStage] { [v1ToV2] }
+    static var schemas: [any VersionedSchema.Type] {
+        [GallerySchemaV1.self, GallerySchemaV2.self, GallerySchemaV3.self]
+    }
+    static var stages: [MigrationStage] {
+        [v1ToV2, .lightweight(fromVersion: GallerySchemaV2.self, toVersion: GallerySchemaV3.self)]
+    }
 
     /// Carries legacy bindings between the two migration phases.
     private final class LegacyBox {

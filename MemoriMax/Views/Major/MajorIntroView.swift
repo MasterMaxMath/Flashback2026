@@ -533,5 +533,5 @@ extension View {
 
 #Preview {
     NavigationStack { MajorIntroView() }
-        .modelContainer(for: GalleryCard.self, inMemory: true)
+        .demoModelContainer()
 }

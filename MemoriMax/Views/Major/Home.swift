@@ -21,7 +21,7 @@ struct Home: View {
                         .scaledToFit()
                         .frame(width: 280, height: 280)
 
-                    Text("“Make your brain smoother, one game at a time.”")
+                    Text("“Make your brain wrinklyer, one game at a time.”")
                         .italic()
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
@@ -57,5 +57,5 @@ struct Home: View {
     NavigationStack {
         Home()
     }
-    .modelContainer(for: GalleryCard.self, inMemory: true)
+    .demoModelContainer()
 }

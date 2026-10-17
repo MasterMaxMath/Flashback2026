@@ -151,5 +151,5 @@ struct MajorGeneratorView: View {
 
 #Preview {
     NavigationStack { MajorGeneratorView() }
-        .modelContainer(for: GalleryCard.self, inMemory: true)
+        .demoModelContainer()
 }

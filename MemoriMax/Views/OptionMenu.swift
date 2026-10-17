@@ -132,5 +132,5 @@ struct GradientNavLink<Destination: View>: View {
     NavigationStack {
         OptionMenu()
     }
-    .modelContainer(for: GalleryCard.self, inMemory: true)
+    .demoModelContainer()
 }

@@ -331,5 +331,5 @@ func thumbnail(from data: Data?, size: CGFloat) -> some View {
 
 #Preview {
     NavigationStack { GalleryScreen() }
-        .modelContainer(for: GalleryCard.self, inMemory: true)
+        .demoModelContainer()
 }
