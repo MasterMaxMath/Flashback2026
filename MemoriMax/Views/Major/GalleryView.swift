@@ -102,24 +102,39 @@ struct GalleryView: View {
         .padding(12).cardStyle()
     }
 
-    /// Demo content (tutorial dates). For now these are ALWAYS present:
-    /// every visit re-inserts any missing ones, so the gallery never
-    /// sits empty during development and judging.
+    /// Demo content (the tutorial's war scene). For now it is ALWAYS present:
+    /// every visit re-inserts it when missing. Also sweeps away the two legacy
+    /// one-date demo cards from the pre-scene schema.
     static func seedIfNeeded(context: ModelContext) {
-        let demos = [
-            ("The Peloponnesian War began in 431 BC",
-             "431", "remote", "Remote lands clashed — 431 opens the war"),
-            ("The Peloponnesian War ended in 404 BC",
-             "404", "razor", "Decided on a razor's edge — 404 closes the war")
+        let legacyFacts: Set<String> = [
+            "The Peloponnesian War began in 431 BC",
+            "The Peloponnesian War ended in 404 BC"
         ]
+        var removed = 0
+        if let all = try? context.fetch(FetchDescriptor<GalleryCard>()) {
+            for c in all where legacyFacts.contains(c.fact) {
+                context.delete(c)
+                removed += 1
+            }
+        }
+
+        // One scene, two bindings: a razor (404) chases a remote (431).
+        let warScene: [MnemonicBinding] = [
+            MnemonicBinding(digits: "431", word: "remote", tie: "The war opens — remote lands clash"),
+            MnemonicBinding(digits: "404", word: "razor", tie: "The war closes — decided on a razor's edge")
+        ]
+        let demos: [(fact: String, bindings: [MnemonicBinding])] = [
+            ("The Peloponnesian War ran 431–404 BC", warScene)
+        ]
+
         let existingFacts = Set((try? context.fetch(FetchDescriptor<GalleryCard>()))?.map(\.fact) ?? [])
         var added = 0
-        for (fact, digits, word, tie) in demos where !existingFacts.contains(fact) {
-            context.insert(GalleryCard(fact: fact, digits: digits, word: word, tie: tie, tag: "default"))
+        for d in demos where !existingFacts.contains(d.fact) {
+            context.insert(GalleryCard(fact: d.fact, bindings: d.bindings, tag: "default"))
             added += 1
         }
-        if added > 0 { try? context.save() }
-        AIDebugLog.write("Gallery demo check — re-added \(added) card(s).")
+        if added > 0 || removed > 0 { try? context.save() }
+        AIDebugLog.write("Gallery demo check — added \(added), removed \(removed) legacy card(s).")
     }
 }
 
@@ -176,16 +191,25 @@ struct GalleryGroupView: View {
 
 // MARK: Card + thumbnail
 
-/// One saved mnemonic rendered as a card (fact, word/tie, illustration).
+/// One saved scene rendered as a card: its fact, each number↔word binding,
+/// and the single illustration.
 struct MnemonicCardView: View {
     let card: GalleryCard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(card.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(card.word).font(.headline).foregroundColor(.white)
-                Text(card.tie).font(.caption).foregroundColor(.white.opacity(0.65))
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(card.scene, id: \.self) { b in
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                            Text(b.word).font(.headline).foregroundColor(.white)
+                        }
+                        Text(b.tie).font(.caption).foregroundColor(.white.opacity(0.65))
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10).background(Color.black.opacity(0.4)).cornerRadius(10)
@@ -196,13 +220,18 @@ struct MnemonicCardView: View {
                     .cornerRadius(10)
             } else {
                 PlaceholderImageView(
-                    label: "SAVED ART: \(card.word.lowercased()) scene",
+                    label: "SAVED ART: \(artLabel) scene",
                     icon: "photo"
                 )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().cardStyle()
+    }
+
+    private var artLabel: String {
+        let words = card.scene.map(\.word)
+        return words.isEmpty ? "mnemonic" : words.joined(separator: " + ").lowercased()
     }
 }
 

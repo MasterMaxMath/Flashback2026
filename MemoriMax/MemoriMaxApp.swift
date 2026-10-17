@@ -6,10 +6,11 @@ struct MemoriMaxApp: App {
     private let container: ModelContainer
 
     init() {
-        let schema = Schema([GalleryCard.self])
+        let schema = Schema(versionedSchema: GallerySchemaV2.self)
         do {
             let container = try ModelContainer(
                 for: schema,
+                migrationPlan: GalleryMigrationPlan.self,
                 configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)]
             )
             // Seed once, synchronously, before any view fetches from the store.

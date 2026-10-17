@@ -444,9 +444,9 @@ struct AssistedMnemonicView: View {
     private func saveSelected(tag: String) {
         guard let c = selected else { return }
         let asset = sceneImageData == nil ? "no art" : "\(sceneImageData!.count) bytes art"
+        let binding = MnemonicBinding(digits: digits, word: c.word, tie: c.tie)
         modelContext.insert(GalleryCard(
-            fact: factText, digits: digits, word: c.word, tie: c.tie,
-            tag: tag, imageData: sceneImageData
+            fact: factText, bindings: [binding], tag: tag, imageData: sceneImageData
         ))
         try? modelContext.save()
         dlog("Saved to gallery → group '\(tag)' — '\(c.word)' for '\(factText.prefix(50))' (\(asset)).")
