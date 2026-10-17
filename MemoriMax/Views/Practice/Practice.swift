@@ -8,18 +8,39 @@ import SwiftData
 // Your Quizzes (persistent quizzes the user builds from a gallery group).
 
 struct PracticeScreen: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SavedQuiz.createdAt, order: .reverse) private var quizzes: [SavedQuiz]
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             Image("HomeBackground").resizable().scaledToFill().ignoresSafeArea().opacity(0.9)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text("PRACTICE")
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                         .padding(.top, 8)
 
                     GradientNavLink(title: "Daily Quiz", destination: DailyQuizScreen())
+                        .padding(.bottom, 8)
+
+                    if !quizzes.isEmpty {
+                        HStack {
+                            Text("YOUR QUIZZES")
+                                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text("\(quizzes.count)")
+                                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
+                        }
+                        ForEach(quizzes) { quiz in
+                            QuizRow(quiz: quiz) {
+                                modelContext.delete(quiz)
+                                try? modelContext.save()
+                            }
+                        }
+                    }
+
                     GradientNavLink(title: "Your Quizzes", destination: YourQuizzesScreen())
                 }
                 .padding(.horizontal, 50)
@@ -141,7 +162,10 @@ struct YourQuizzesScreen: View {
                         .padding().cardStyle()
                     } else {
                         ForEach(quizzes) { quiz in
-                            quizRow(quiz)
+                            QuizRow(quiz: quiz) {
+                                modelContext.delete(quiz)
+                                try? modelContext.save()
+                            }
                         }
                     }
 
@@ -174,10 +198,32 @@ struct YourQuizzesScreen: View {
         }
     }
 
-    private func quizRow(_ quiz: SavedQuiz) -> some View {
+    private func buildQuiz(from tag: String) {
+        let groupCards = cards.filter { ($0.tag.isEmpty ? "default" : $0.tag) == tag }
+        let questions = QuizBuilder.questions(from: groupCards, limit: 10)
+        guard !questions.isEmpty else { return }
+        let title = tag == "default" ? "My Mnemonics" : tag
+        modelContext.insert(SavedQuiz(title: title, sourceTag: tag, questions: questions))
+        try? modelContext.save()
+    }
+}
+
+// MARK: Shared quiz row — listed on both the Practice hub and Your Quizzes
+
+/// A saved quiz rendered as a tappable row: plays the quiz, records the
+/// attempt, and offers Remove through the ⋯ menu. `onDelete` does the actual
+/// deletion so the owning screen decides (its store, its save).
+struct QuizRow: View {
+    let quiz: SavedQuiz
+    let onDelete: () -> Void
+
+    var body: some View {
         NavigationLink(destination: QuizPlayView(
             questions: quiz.questions,
-            onFinish: { attempt in recordAttempt(attempt, for: quiz) }
+            onFinish: { attempt in
+                quiz.attempts.append(attempt)
+                try? quizModelContext.save()
+            }
         )) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -191,10 +237,7 @@ struct YourQuizzesScreen: View {
                 }
                 Spacer()
                 Menu {
-                    Button(role: .destructive) {
-                        modelContext.delete(quiz)
-                        try? modelContext.save()
-                    } label: {
+                    Button(role: .destructive, action: onDelete) {
                         Label("Remove quiz", systemImage: "trash")
                     }
                 } label: {
@@ -210,19 +253,9 @@ struct YourQuizzesScreen: View {
         .buttonStyle(.plain)
     }
 
-    private func buildQuiz(from tag: String) {
-        let groupCards = cards.filter { ($0.tag.isEmpty ? "default" : $0.tag) == tag }
-        let questions = QuizBuilder.questions(from: groupCards, limit: 10)
-        guard !questions.isEmpty else { return }
-        let title = tag == "default" ? "My Mnemonics" : tag
-        modelContext.insert(SavedQuiz(title: title, sourceTag: tag, questions: questions))
-        try? modelContext.save()
-    }
-
-    private func recordAttempt(_ attempt: QuizAttempt, for quiz: SavedQuiz) {
-        quiz.attempts.append(attempt)
-        try? modelContext.save()
-    }
+    /// SwiftData injects a context per view from the environment; rows live
+    /// under whichever container the owning screen was presented with.
+    @Environment(\.modelContext) private var quizModelContext
 }
 
 // MARK: Quiz-creation sheet — pick the group a quiz is built from
