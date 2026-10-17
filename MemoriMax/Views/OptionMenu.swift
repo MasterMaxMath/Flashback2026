@@ -71,11 +71,7 @@ struct OptionMenu: View {
 
                     GradientNavLink(title: "Gallery", destination: GalleryScreen())
 
-                    GradientButton(title: "Grateful Page",
-                                shadowStartColor: .white,
-                                shadowEndColor: .black) {
-                        print("Word Recall selected")
-                    }
+                    GradientNavLink(title: "Practice", destination: PracticeScreen())
                 }
                 .padding(.horizontal, 50)
                 .padding(.bottom, 40)
