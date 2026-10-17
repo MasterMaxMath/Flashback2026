@@ -102,6 +102,15 @@ struct GalleryView: View {
         .padding(12).cardStyle()
     }
 
+    /// Bundled demo art ("a razor hits a remote") so the war card shows a real
+    /// illustration instead of an empty slot. Re-encoded to JPEG to keep the
+    /// blob (and the external-storage file) small.
+    private static let demoArtName = "razor-hits-remote"
+
+    private static var demoArtData: Data? {
+        UIImage(named: demoArtName)?.jpegData(compressionQuality: 0.85)
+    }
+
     /// Demo content (the tutorial's war scene). For now it is ALWAYS present:
     /// every visit re-inserts it when missing. Also sweeps away the two legacy
     /// one-date demo cards from the pre-scene schema.
@@ -128,13 +137,22 @@ struct GalleryView: View {
         ]
 
         let existingFacts = Set((try? context.fetch(FetchDescriptor<GalleryCard>()))?.map(\.fact) ?? [])
+        let art = demoArtData
         var added = 0
         for d in demos where !existingFacts.contains(d.fact) {
-            context.insert(GalleryCard(fact: d.fact, bindings: d.bindings, tag: "default"))
+            context.insert(GalleryCard(fact: d.fact, bindings: d.bindings, tag: "default", imageData: art))
             added += 1
         }
-        if added > 0 || removed > 0 { try? context.save() }
-        AIDebugLog.write("Gallery demo check — added \(added), removed \(removed) legacy card(s).")
+        // Backfill a demo card saved before the bundled art existed, so it
+        // doesn't sit as a bare slot forever.
+        var backfilled = 0
+        if let all = try? context.fetch(FetchDescriptor<GalleryCard>()) {
+            for c in all where c.imageData == nil && demos.contains(where: { $0.fact == c.fact }) {
+                if let art { c.imageData = art; backfilled += 1 }
+            }
+        }
+        if added > 0 || removed > 0 || backfilled > 0 { try? context.save() }
+        AIDebugLog.write("Gallery demo check — added \(added), removed \(removed) legacy, arted \(backfilled) card(s).")
     }
 }
 

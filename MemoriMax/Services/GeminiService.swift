@@ -226,11 +226,7 @@ enum GeminiService {
             ])
         }
         let prompt = """
-        Cheerful children's picture-book illustration. STRICT RULE: absolutely \
-        no text, words, letters, numbers, captions, labels, signs, or \
-        watermarks anywhere in the image — purely visual, no typography at \
-        all. Anything that would normally carry writing (signs, books, \
-        labels, posters) must be rendered completely blank. ONE single \
+        Cheerful children's picture-book illustration. ONE single \
         unmistakable hero subject dominates the center of the frame, drawn \
         LARGE so it fills much of the picture: "\(word)". Around it, a \
         simple vivid scene showing this action: \(tie). The scene \

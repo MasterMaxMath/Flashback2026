@@ -46,11 +46,7 @@ enum CloudflareImageService {
             ])
         }
         let prompt = """
-        Cheerful children's picture-book illustration. STRICT RULE: absolutely \
-        no text, words, letters, numbers, captions, labels, signs, or \
-        watermarks anywhere in the image — purely visual, no typography at \
-        all. Anything that would normally carry writing (signs, books, \
-        labels, posters) must be rendered completely blank. ONE single \
+        Cheerful children's picture-book illustration. ONE single \
         unmistakable hero subject dominates the center of the frame, drawn \
         LARGE so it fills much of the picture: "\(word)". Around it, a \
         simple vivid scene showing this action: \(tie). The scene \
@@ -59,7 +55,7 @@ enum CloudflareImageService {
         colors, clear silhouette.
         """
         // Note: flux models reject unevaluated properties, so there is no
-        // negative_prompt here — the no-text rule lives in the prompt text.
+        // negative_prompt field — everything lives in the prompt text.
         let body: [String: Any] = ["prompt": prompt]
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
