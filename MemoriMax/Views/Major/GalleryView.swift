@@ -215,48 +215,30 @@ struct MnemonicCardView: View {
     let card: GalleryCard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Art first, kept modest in size; the words sit beneath it.
-            art.frame(maxWidth: .infinity)      // centers a narrow image
+        HStack(alignment: .top, spacing: 12) {
+            // Art on the left as a fixed square; words on the right.
+            thumbnail(from: card.imageData, size: 110)
 
-            Text(card.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(card.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(card.scene, id: \.self) { b in
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
-                            Text(b.word).font(.headline).foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(card.scene, id: \.self) { b in
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                                Text(b.word).font(.headline).foregroundColor(.white)
+                            }
+                            Text(b.tie).font(.caption).foregroundColor(.white.opacity(0.65))
                         }
-                        Text(b.tie).font(.caption).foregroundColor(.white.opacity(0.65))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8).background(Color.black.opacity(0.4)).cornerRadius(10)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10).background(Color.black.opacity(0.4)).cornerRadius(10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().cardStyle()
-    }
-
-    @ViewBuilder
-    private var art: some View {
-        if let data = card.imageData, let img = UIImage(data: data) {
-            Image(uiImage: img)
-                .resizable().scaledToFit()
-                .frame(maxHeight: 220)
-                .cornerRadius(10)
-        } else {
-            PlaceholderImageView(
-                label: "SAVED ART: \(artLabel) scene",
-                icon: "photo"
-            )
-        }
-    }
-
-    private var artLabel: String {
-        let words = card.scene.map(\.word)
-        return words.isEmpty ? "mnemonic" : words.joined(separator: " + ").lowercased()
     }
 }
 
