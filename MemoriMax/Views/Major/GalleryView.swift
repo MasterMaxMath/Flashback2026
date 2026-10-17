@@ -216,6 +216,9 @@ struct MnemonicCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Art first, kept modest in size; the words sit beneath it.
+            art.frame(maxWidth: .infinity)      // centers a narrow image
+
             Text(card.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
 
             VStack(alignment: .leading, spacing: 8) {
@@ -231,20 +234,24 @@ struct MnemonicCardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10).background(Color.black.opacity(0.4)).cornerRadius(10)
-
-            if let data = card.imageData, let img = UIImage(data: data) {
-                Image(uiImage: img)
-                    .resizable().scaledToFit()
-                    .cornerRadius(10)
-            } else {
-                PlaceholderImageView(
-                    label: "SAVED ART: \(artLabel) scene",
-                    icon: "photo"
-                )
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().cardStyle()
+    }
+
+    @ViewBuilder
+    private var art: some View {
+        if let data = card.imageData, let img = UIImage(data: data) {
+            Image(uiImage: img)
+                .resizable().scaledToFit()
+                .frame(maxHeight: 220)
+                .cornerRadius(10)
+        } else {
+            PlaceholderImageView(
+                label: "SAVED ART: \(artLabel) scene",
+                icon: "photo"
+            )
+        }
     }
 
     private var artLabel: String {

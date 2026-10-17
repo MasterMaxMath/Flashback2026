@@ -381,6 +381,8 @@ struct AssistedMnemonicView: View {
         if let data = sceneImageData, let img = UIImage(data: data) {
             Image(uiImage: img)
                 .resizable().scaledToFit()
+                .frame(maxHeight: 220)
+                .frame(maxWidth: .infinity)
                 .cornerRadius(14)
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.6)))
         } else if imageLoading {
