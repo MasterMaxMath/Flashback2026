@@ -62,39 +62,24 @@ struct QuizPlayView: View {
                     .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
             }
 
-            // Grounding: the scene it came from. The art is HIDDEN until the
-            // question is answered — it depicts the mnemonic objects, so
-            // showing it upfront gives the answer away. Once picked, the
-            // scene is revealed as reinforcement.
-            HStack(alignment: .top, spacing: 14) {
-                if picked != nil, let art {
+            // Grounding: the scene it came from. The art is HIDDEN (fully
+            // removed — no reserved slot) until the question is answered:
+            // it depicts the mnemonic objects, so showing it upfront gives
+            // the answer away. Once picked, the scene is revealed right
+            // next to the fact as reinforcement.
+            if picked != nil, let art {
+                HStack(alignment: .top, spacing: 14) {
                     Image(uiImage: art).resizable().scaledToFill()
                         .frame(width: 110, height: 110).clipped()
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.6)))
-                } else {
-                    Color.white.opacity(0.08)
-                        .overlay(Image(systemName: "photo").foregroundColor(.white.opacity(0.35)))
-                        .frame(width: 110, height: 110)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.15)))
+                    groundingText(q)
                 }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(q.fact).font(.subheadline).foregroundColor(.white.opacity(0.9))
-
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
-                        Text("→").font(.caption).foregroundColor(.white.opacity(0.5))
-                        Text(q.kind == .digitsToWord ? "?" : q.word).font(.headline).foregroundColor(.white)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                groundingText(q)
             }
 
-            Text(q.kind == .digitsToWord
-                 ? "Which word encodes \(q.digits)?"
-                 : "What number does “\(q.word)” encode?")
+            Text(stem(q))
                 .font(.headline).foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -125,7 +110,8 @@ struct QuizPlayView: View {
         } label: {
             HStack(spacing: 10) {
                 Text(option)
-                    .font(q.kind == .wordToDigits ? .title3.monospaced() : .headline)
+                    .font(q.kind == .wordToDigits || q.kind == .factToDigits
+                          ? .title3.monospaced() : .headline)
                     .foregroundColor(.white)
                 Spacer()
                 if picked != nil && isCorrect {
@@ -219,6 +205,58 @@ struct QuizPlayView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().cardStyle()
+    }
+
+    // MARK: question text helpers
+
+    /// The grounding block: fact (with numbers redacted whenever the
+    /// number is the answer it would leak) plus the number ↔ mnemonic row.
+    private func groundingText(_ q: QuizQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(groundingFact(q))
+                .font(.subheadline).foregroundColor(.white.opacity(0.9))
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if q.kind == .digitsToWord || q.kind == .factToWord {
+                    // The number is given; the mnemonic stays hidden.
+                    Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
+                } else {
+                    // The mnemonic is given; the number stays hidden.
+                    Text(q.word).font(.headline).foregroundColor(.white)
+                }
+                Text("→").font(.caption).foregroundColor(.white.opacity(0.5))
+                Text("?").font(.caption.monospaced()).foregroundColor(.green)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// When the number itself is the answer, the fact's digits are blanked
+    /// out so they can't hand the answer over ("The war ran ____–____ BC").
+    private func groundingFact(_ q: QuizQuestion) -> String {
+        guard q.kind == .wordToDigits || q.kind == .factToDigits else { return q.fact }
+        return Self.blankNumbers(q.fact)
+    }
+
+    private static func blankNumbers(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: "\\d+") else { return text }
+        let range = NSRange(text.startIndex..., in: text)
+        let template = String(repeating: "_", count: 3)
+        return regex.stringByReplacingMatches(
+            in: text, options: [], range: range,
+            withTemplate: template
+        )
+    }
+
+    /// Question stems. Mnemonics may be phrases ("tea sore bun"), so the
+    /// word-direction stems allow for plurality: word(s), encode(s).
+    private func stem(_ q: QuizQuestion) -> String {
+        switch q.kind {
+        case .digitsToWord: return "Which word(s) encode(s) \(q.digits)?"
+        case .wordToDigits: return "What number does “\(q.word)” encode?"
+        case .factToWord:   return "Which mnemonic goes with this fact?"
+        case .factToDigits: return "What number belongs in this fact?"
+        }
     }
 
     // MARK: art

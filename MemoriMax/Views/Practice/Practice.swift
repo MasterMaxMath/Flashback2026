@@ -74,7 +74,7 @@ struct DailyQuizScreen: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("\(questions.count) questions, built from your gallery.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("Both directions: number → word and word → number. The same set stays up all day; a fresh one arrives tomorrow.")
+                            Text("Number → word(s), word → number, and both again from the fact itself. Two passes per mnemonic; the same set stays up all day, a fresh one arrives tomorrow.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

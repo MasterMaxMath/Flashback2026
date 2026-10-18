@@ -3,19 +3,28 @@ import SwiftData
 
 // MARK: - Quiz building blocks
 //
-// A question is ONE number↔word atom taken from a gallery scene. Facts and
+// A question is ONE recall atom taken from a gallery scene. Facts and
 // words are snapshotted so quizzes keep working even if the gallery card is
 // later edited or removed; the illustration is looked up live from the store
 // (by matching fact), so it stays current and is never duplicated.
 //
-// Two directions per requirement of real recall:
-//   .digitsToWord — "431" → remote   (what does the number sound like?)
-//   .wordToDigits — remote → "431"   (what does the word spell?)
+// FOUR kinds, so every mnemonic gets drilled in more than one way (two
+// questions per binding, never the same template twice in a row):
+//   .digitsToWord — "431" → remote     (what does the number sound like?)
+//   .wordToDigits — remote → "431"     (what does the word spell?)
+//   .factToWord   — fact → remote      (which mnemonic belongs to this fact?)
+//   .factToDigits — fact (number blanked) → "431" (which number fills the gap?)
 
 struct QuizQuestion: Codable, Hashable, Identifiable {
     enum Kind: String, Codable {
+        /// Number shown, answer is the mnemonic word(s).
         case digitsToWord
+        /// Mnemonic word(s) shown, answer is the number.
         case wordToDigits
+        /// Fact shown, answer is the mnemonic word(s) belonging to it.
+        case factToWord
+        /// Fact shown with its numbers blanked, answer is a number.
+        case factToDigits
     }
 
     let id: UUID
@@ -97,11 +106,12 @@ enum QuizBuilder {
         return year * 1000 + day
     }
 
-    /// Builds up to `limit` questions from the cards' bindings.
-    /// With a seed, the output is reproducible (the daily quiz).
-    /// Every multiple-choice question carries exactly FIVE options —
-    /// 1 correct + 4 wrong — synthesized from the bundled peg vocabulary
-    /// when the user's deck is too small to supply real distractors.
+    /// Builds up to `limit` questions from the cards' bindings, with TWO
+    /// questions per binding (each mnemonic gets drilled more than once,
+    /// in different templates). With a seed, the output is reproducible
+    /// (the daily quiz). Every multiple-choice question carries exactly
+    /// FIVE options — 1 correct + 4 wrong — synthesized from other deck
+    /// words, the bundled DB, and the peg vocabulary when those run dry.
     static func questions(from cards: [GalleryCard], seed: Int? = nil, limit: Int = 8) -> [QuizQuestion] {
         var rng = seed.map(SeededGenerator.init)
             ?? SeededGenerator(seed: Int.random(in: 0 ... Int.max))
@@ -111,53 +121,82 @@ enum QuizBuilder {
         }
         guard !bindings.isEmpty else { return [] }
 
+        let allWords = bindings.map(\.word)
         var out: [QuizQuestion] = []
-        let chosen = bindings.shuffled(using: &rng).prefix(limit)
-        for (i, binding) in chosen.enumerated() {
-            let kind: QuizQuestion.Kind = i % 2 == 0 ? .digitsToWord : .wordToDigits
-
-            let correct: String
-            let wrong: [String]
-            switch kind {
-            case .digitsToWord:
-                // 4 wrong words: peg vocabulary words for OTHER digit
-                // strings of the same width — the standard method, so the
-                // distractors look like every other mnemonic the user met.
-                correct = binding.word
-                wrong = pegWordDistractors(forDigits: binding.digits, correct: correct, count: 4, using: &rng)
-            case .wordToDigits:
-                // 4 wrong numbers: same-length strings that never equal the
-                // answer (deck digits of other bindings first, then random).
-                correct = binding.digits
-                wrong = digitDistractors(forDigits: binding.digits, count: 4, using: &rng)
+        // Two questions per mnemonic → ceil(limit / 2) bindings.
+        let wanted = Int(ceil(Double(limit) / 2.0))
+        for binding in bindings.shuffled(using: &rng).prefix(wanted) {
+            // One template asks for the word(s) — straight, or anchored on
+            // the fact — and one asks for the number — straight, or as the
+            // blank in the fact (which is harder: the fact must be recalled
+            // without its number leaking through it).
+            let wordKind: QuizQuestion.Kind = rng.next() % 2 == 0 ? .digitsToWord : .factToWord
+            let numberKind: QuizQuestion.Kind = rng.next() % 2 == 0 ? .wordToDigits : .factToDigits
+            for kind in [wordKind, numberKind] {
+                out.append(makeQuestion(kind: kind, binding: binding,
+                                        otherWords: allWords, using: &rng))
             }
-
-            let options = ([correct] + wrong).shuffled(using: &rng)
-            guard let correctIndex = options.firstIndex(of: correct) else { continue }
-
-            out.append(QuizQuestion(
-                id: UUID(),
-                fact: binding.fact,
-                kind: kind,
-                digits: binding.digits,
-                word: binding.word,
-                options: options,
-                correctIndex: correctIndex
-            ))
         }
-        return out
+        return out.shuffled(using: &rng)
+    }
+
+    /// Assembles one 5-option question of the given kind.
+    private static func makeQuestion(kind: QuizQuestion.Kind,
+                                     binding: (fact: String, digits: String, word: String),
+                                     otherWords: [String],
+                                     using rng: inout SeededGenerator) -> QuizQuestion {
+        let correct: String
+        var wrong: [String]
+        switch kind {
+        case .digitsToWord, .factToWord:
+            // 4 wrong words: other deck mnemonics first (the most realistic
+            // wrong answers), then words for random digit probes from the
+            // bundled DB, then peg-vocabulary padding.
+            correct = binding.word
+            wrong = pegWordDistractors(forDigits: binding.digits, correct: binding.word,
+                                       others: otherWords, count: 4, using: &rng)
+        case .wordToDigits, .factToDigits:
+            // 4 wrong numbers: same-length strings that never equal the
+            // answer (deck digits of other bindings first, then random).
+            correct = binding.digits
+            wrong = digitDistractors(forDigits: binding.digits, count: 4, using: &rng)
+        }
+        let options = ([correct] + wrong).shuffled(using: &rng)
+        return QuizQuestion(
+            id: UUID(),
+            fact: binding.fact,
+            kind: kind,
+            digits: binding.digits,
+            word: binding.word,
+            options: options,
+            correctIndex: options.firstIndex(of: correct) ?? 0
+        )
     }
 
     // MARK: distractor synthesis (always exactly `count` wrong options)
 
-    /// `count` wrong words for a number→word question: look up the bundled
-    /// DB for random same-width digit strings (≠ the answer's digits), and
-    /// pad with peg-list words when the lookup comes up dry.
+    /// `count` wrong words for a number→word question: other deck mnemonics
+    /// first, then lookups of random same-width digit strings (≠ the
+    /// answer's digits) in the bundled DB, padded with peg-list words when
+    /// the lookup comes up dry.
     private static func pegWordDistractors(forDigits answerDigits: String,
                                            correct correctWord: String,
+                                           others: [String] = [],
                                            count: Int,
                                            using rng: inout SeededGenerator) -> [String] {
         var out: [String] = [correctWord]
+        // Real deck words first — the user actually learned them, so they
+        // are the most convincing wrong answers (as long as their own
+        // codes differ from the answer's digits, and they aren't the
+        // correct word itself). Any multi-word phrase here is fine too:
+        // candidates are full-number phrases.
+        for word in others.shuffled(using: &rng) {
+            guard out.count <= count else { break }
+            let code = MajorTools.digits(for: word) ?? MajorSystem.digits(for: word)
+            if word != correctWord, code != answerDigits, !out.contains(word) {
+                out.append(word)
+            }
+        }
         var tried: Set<String> = []
         var attempts = 0
         while out.count <= count && attempts < 80 {
