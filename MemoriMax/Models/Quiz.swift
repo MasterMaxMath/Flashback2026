@@ -8,12 +8,13 @@ import SwiftData
 // later edited or removed; the illustration is looked up live from the store
 // (by matching fact), so it stays current and is never duplicated.
 //
-// FOUR kinds, so every mnemonic gets drilled in more than one way (two
+// FIVE kinds, so every mnemonic gets drilled in more than one way (two
 // questions per binding, never the same template twice in a row):
 //   .digitsToWord — "431" → remote     (what does the number sound like?)
 //   .wordToDigits — remote → "431"     (what does the word spell?)
 //   .factToWord   — fact → remote      (which mnemonic belongs to this fact?)
 //   .factToDigits — fact (number blanked) → "431" (which number fills the gap?)
+//   .imageToWord  — scene art → remote (which picture is which mnemonic?)
 
 struct QuizQuestion: Codable, Hashable, Identifiable {
     enum Kind: String, Codable {
@@ -25,6 +26,8 @@ struct QuizQuestion: Codable, Hashable, Identifiable {
         case factToWord
         /// Fact shown with its numbers blanked, answer is a number.
         case factToDigits
+        /// Scene illustration shown, answer is the mnemonic word(s) it depicts.
+        case imageToWord
     }
 
     let id: UUID
@@ -116,8 +119,10 @@ enum QuizBuilder {
         var rng = seed.map(SeededGenerator.init)
             ?? SeededGenerator(seed: Int.random(in: 0 ... Int.max))
 
-        let bindings: [(fact: String, digits: String, word: String)] = cards.flatMap { card in
-            card.scene.map { (card.fact, $0.digits, $0.word) }
+        /// (fact, digits, word, card has art, other words inside the SAME scene)
+        let bindings: [(fact: String, digits: String, word: String, hasArt: Bool, companions: [String])] = cards.flatMap { card in
+            let companionWords = card.scene.map(\.word)
+            return card.scene.map { (card.fact, $0.digits, $0.word, card.imageData != nil, companionWords) }
         }
         guard !bindings.isEmpty else { return [] }
 
@@ -126,15 +131,23 @@ enum QuizBuilder {
         // Two questions per mnemonic → ceil(limit / 2) bindings.
         let wanted = Int(ceil(Double(limit) / 2.0))
         for binding in bindings.shuffled(using: &rng).prefix(wanted) {
-            // One template asks for the word(s) — straight, or anchored on
-            // the fact — and one asks for the number — straight, or as the
-            // blank in the fact (which is harder: the fact must be recalled
-            // without its number leaking through it).
-            let wordKind: QuizQuestion.Kind = rng.next() % 2 == 0 ? .digitsToWord : .factToWord
+            // One template asks for the word(s) — the picture round when the
+            // scene has art (50/50), otherwise straight or fact-anchored —
+            // and one asks for the number — straight, or as the blank in the
+            // fact (which is harder: the fact must be recalled without its
+            // number leaking through it).
+            let wordKind: QuizQuestion.Kind = binding.hasArt && rng.next() % 2 == 0
+                ? .imageToWord
+                : (rng.next() % 2 == 0 ? .digitsToWord : .factToWord)
             let numberKind: QuizQuestion.Kind = rng.next() % 2 == 0 ? .wordToDigits : .factToDigits
             for kind in [wordKind, numberKind] {
+                // Picture questions must not offer the companion words of the
+                // SAME scene — e.g. the razor_hits_remote art depicts both
+                // razor and remote, so "razor" as a wrong answer for the
+                // remote question would be unfair.
+                let exclude = kind == .imageToWord ? Set(binding.companions) : Set<String>()
                 out.append(makeQuestion(kind: kind, binding: binding,
-                                        otherWords: allWords, using: &rng))
+                                        otherWords: allWords, exclude: exclude, using: &rng))
             }
         }
         return out.shuffled(using: &rng)
@@ -142,19 +155,21 @@ enum QuizBuilder {
 
     /// Assembles one 5-option question of the given kind.
     private static func makeQuestion(kind: QuizQuestion.Kind,
-                                     binding: (fact: String, digits: String, word: String),
+                                     binding: (fact: String, digits: String, word: String,
+                                               hasArt: Bool, companions: [String]),
                                      otherWords: [String],
+                                     exclude: Set<String>,
                                      using rng: inout SeededGenerator) -> QuizQuestion {
         let correct: String
         var wrong: [String]
         switch kind {
-        case .digitsToWord, .factToWord:
+        case .digitsToWord, .factToWord, .imageToWord:
             // 4 wrong words: other deck mnemonics first (the most realistic
             // wrong answers), then words for random digit probes from the
             // bundled DB, then peg-vocabulary padding.
             correct = binding.word
             wrong = pegWordDistractors(forDigits: binding.digits, correct: binding.word,
-                                       others: otherWords, count: 4, using: &rng)
+                                       others: otherWords, exclude: exclude, count: 4, using: &rng)
         case .wordToDigits, .factToDigits:
             // 4 wrong numbers: same-length strings that never equal the
             // answer (deck digits of other bindings first, then random).
@@ -182,18 +197,20 @@ enum QuizBuilder {
     private static func pegWordDistractors(forDigits answerDigits: String,
                                            correct correctWord: String,
                                            others: [String] = [],
+                                           exclude: Set<String> = [],
                                            count: Int,
                                            using rng: inout SeededGenerator) -> [String] {
         var out: [String] = [correctWord]
         // Real deck words first — the user actually learned them, so they
         // are the most convincing wrong answers (as long as their own
-        // codes differ from the answer's digits, and they aren't the
-        // correct word itself). Any multi-word phrase here is fine too:
-        // candidates are full-number phrases.
+        // codes differ from the answer's digits, they aren't the correct
+        // word itself, and they aren't excluded — e.g. same-scene
+        // companions on picture questions). Any multi-word phrase here is
+        // fine too: candidates are full-number phrases.
         for word in others.shuffled(using: &rng) {
             guard out.count <= count else { break }
             let code = MajorTools.digits(for: word) ?? MajorSystem.digits(for: word)
-            if word != correctWord, code != answerDigits, !out.contains(word) {
+            if word != correctWord, !exclude.contains(word), code != answerDigits, !out.contains(word) {
                 out.append(word)
             }
         }
@@ -225,6 +242,7 @@ enum QuizBuilder {
         }
         let wrong = out.dropFirst().filter { word in
             word != correctWord
+                && !exclude.contains(word)
                 && (MajorTools.digits(for: word) ?? MajorSystem.digits(for: word)) != answerDigits
         }
         let pool = Array(Set(wrong)).shuffled(using: &rng)

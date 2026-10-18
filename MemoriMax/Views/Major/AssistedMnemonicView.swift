@@ -187,6 +187,12 @@ struct AssistedMnemonicView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(c.word).font(.headline).foregroundColor(.white)
+                                // Per-word digit codes, always computed on-device
+                                // (DB code, naive fallback) — never trusted from
+                                // the provider: Apple's and Gemini's words all
+                                // showcase exactly which digits they stand for.
+                                Text(codesLine(for: c.word))
+                                    .font(.caption.monospaced()).foregroundColor(.green)
                                 Text(c.tie).font(.caption).foregroundColor(.white.opacity(0.65))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,6 +221,18 @@ struct AssistedMnemonicView: View {
     }
 
     // MARK: - Apple Intelligence candidates (words only, locally verified)
+
+    /// "tea → 1 · sore → 04 · bun → 92" — per-word digit codes for a
+    /// candidate phrase, computed on-device from the bundled CMU phonetics
+    /// (naive encoder as backup) so the display always matches verify().
+    private func codesLine(for phrase: String) -> String {
+        phrase.split { $0.isWhitespace }.map(String.init).filter { !$0.isEmpty }
+            .map { word in
+                let code = MajorTools.digits(for: word) ?? MajorSystem.digits(for: word)
+                return "\(word) → \(code.isEmpty ? "?" : code)"
+            }
+            .joined(separator: " · ")
+    }
 
     @ViewBuilder
     private var aiStatusRow: some View {

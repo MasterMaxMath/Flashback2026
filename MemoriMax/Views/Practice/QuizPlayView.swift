@@ -62,17 +62,18 @@ struct QuizPlayView: View {
                     .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
             }
 
-            // Grounding: the scene it came from. The art is HIDDEN (fully
-            // removed — no reserved slot) until the question is answered:
-            // it depicts the mnemonic objects, so showing it upfront gives
-            // the answer away. Once picked, the scene is revealed right
-            // next to the fact as reinforcement.
-            if picked != nil, let art {
+            // Grounding: the scene it came from. For picture questions the
+            // art IS the prompt — shown with a neutral border from the
+            // start. For every other kind the art is HIDDEN (fully removed
+            // — no reserved slot) until the question is answered, then
+            // revealed beside the fact as reinforcement.
+            if (q.kind == .imageToWord || picked != nil), let art {
                 HStack(alignment: .top, spacing: 14) {
                     Image(uiImage: art).resizable().scaledToFill()
                         .frame(width: 110, height: 110).clipped()
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.6)))
+                        .overlay(RoundedRectangle(cornerRadius: 10)
+                            .stroke(picked != nil ? Color.green.opacity(0.6) : Color.white.opacity(0.15)))
                     groundingText(q)
                 }
             } else {
@@ -217,12 +218,21 @@ struct QuizPlayView: View {
                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if q.kind == .digitsToWord || q.kind == .factToWord {
+                if q.kind == .imageToWord && art != nil {
+                    // Pure picture round: neither number nor word is shown —
+                    // the scene itself must be decoded into its mnemonic.
+                    Image(systemName: "photo")
+                        .font(.caption).foregroundColor(.green)
+                } else if q.kind == .digitsToWord || q.kind == .factToWord {
                     // The number is given; the mnemonic stays hidden.
                     Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
-                } else {
+                } else if q.kind == .wordToDigits || q.kind == .factToDigits {
                     // The mnemonic is given; the number stays hidden.
                     Text(q.word).font(.headline).foregroundColor(.white)
+                } else {
+                    // Picture question whose art went missing (card edited
+                    // away?) — degrade to a number question so it stays fair.
+                    Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
                 }
                 Text("→").font(.caption).foregroundColor(.white.opacity(0.5))
                 Text("?").font(.caption.monospaced()).foregroundColor(.green)
@@ -256,6 +266,7 @@ struct QuizPlayView: View {
         case .wordToDigits: return "What number does “\(q.word)” encode?"
         case .factToWord:   return "Which mnemonic goes with this fact?"
         case .factToDigits: return "What number belongs in this fact?"
+        case .imageToWord:  return "Which word(s) does this scene depict?"
         }
     }
 
