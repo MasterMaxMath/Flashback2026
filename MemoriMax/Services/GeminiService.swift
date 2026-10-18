@@ -51,23 +51,27 @@ enum GeminiService {
         }
 
         let instructions = """
-        You turn numbers into Major System words. Mapping: 0=S/Z, 1=T/D/TH, \
+        You build Major System mnemonic PHRASES. Mapping: 0=S/Z, 1=T/D/TH, \
         2=N, 3=M, 4=R, 5=L, 6=SH/CH/J/soft-G, 7=K/hard-C/hard-G/Q, 8=F/V/PH, \
         9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
         a function called to_words that searches a 62,000-word phonetic \
-        database. ALWAYS call to_words with the target digits before \
-        answering, and suggest words ONLY from what it returns. Worked \
-        examples: 404 lives in "razor" (R-Z-R), 431 lives in "remote" \
-        (R-M-T). You may call to_words several times, reasoning between \
-        calls: first the full number, then shorter chunks (2-4 digits) if \
-        there is no exact match. Reply with single words only, never phrases.
+        database. ALWAYS call to_words with the target digits first, then \
+        with shorter chunks (2-4 digits) as needed, and assemble phrases \
+        ONLY from words it returned. A candidate is a PHRASE of 2-5 words; \
+        the concatenated consonant codes of its words, in order, must equal \
+        the FULL target digits exactly — every digit covered, none missing, \
+        none extra. Example: 404 → "razor" is right when it spans \
+        everything (R-Z-R). The phrase should evoke the fact's meaning. \
+        Reply with phrases only, never a word that covers less than the \
+        full number.
         """
         let prompt = """
         Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
-        with digits "\(digits)" — retry with shorter chunks if it finds \
-        nothing — then reply with exactly 3 single words from the gathered \
-        results. For each word, write a one-line tie to the fact explaining \
-        why it fits.
+        with digits "\(digits)" and with useful chunks of it, then reply \
+        with exactly 3 phrases (2-5 words each); every phrase's words \
+        together must code to the full \(digits). For each phrase, write a \
+        one-line tie to the fact explaining how the pictured scene \
+        expresses the fact's meaning.
         """
         let toWordsDecl: [String: Any] = [
             "name": "to_words",
@@ -158,12 +162,58 @@ enum GeminiService {
             "system_instruction": ["parts": [["text": instructions]]],
             "contents": contents + [["role": "user", "parts": [["text": """
                 Based on the to_words results above, reply with exactly 3 \
-                single words and a one-line tie to the fact for each.
+                phrases (each 2-5 words, all words from the results or \
+                earlier response words; the phrase's words together must \
+                code to the full \(digits)) and a one-line tie to the fact \
+                for each. The "word" field carries the complete phrase.
                 """]]]],
             "generationConfig": ["responseMimeType": "application/json", "responseSchema": schema]
         ]
         let finalParts = try await postToGemini(url: url, key: key, body: final)
         return try decodeCandidates(from: finalParts)
+    }
+
+    /// Writes the visual STORY the image model will illustrate: one vivid
+    /// sentence in which every word of the chosen phrase interacts to act
+    /// out the fact. Callers fall back to the tie line when this throws.
+    static func generateStory(fact: String, phrase: String, tie: String,
+                              model: String = defaultModel) async throws -> String {
+        let key = apiKey
+        guard !key.isEmpty else {
+            throw NSError(domain: "Gemini", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "No Gemini API key configured (Config/Secrets.xcconfig)."
+            ])
+        }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+            throw NSError(domain: "Gemini", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Bad Gemini model name: \(model)."
+            ])
+        }
+        let instructions = """
+        You compose one-sentence storyboards for picture-book illustrations. \
+        Rules: a single vivid sentence, 15-30 words, present tense, \
+        describing a concrete physical scene where ALL of the given objects \
+        clearly interact to act out the given meaning. Name every object \
+        directly. No dialogue or abstract ideas.
+        """
+        let prompt = """
+        Meaning to express: "\(fact)". Scene hint: "\(tie)". The mnemonic \
+        objects that must appear and interact: "\(phrase)". Write the story \
+        sentence only — no quotes, no preamble.
+        """
+        let body: [String: Any] = [
+            "system_instruction": ["parts": [["text": instructions]]],
+            "contents": [["role": "user", "parts": [["text": prompt]]]]
+        ]
+        let parts = try await postToGemini(url: url, key: key, body: body)
+        for part in parts {
+            if let text = part["text"] as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        throw NSError(domain: "Gemini", code: 4, userInfo: [
+            NSLocalizedDescriptionKey: "Gemini returned no story text."
+        ])
     }
 
     /// POSTs one turn and returns the response's content parts.
@@ -207,12 +257,13 @@ enum GeminiService {
 
     // MARK: - Scene illustration (image model, one picture per mnemonic)
 
-    /// Generates one scene illustration (PNG bytes) for the chosen word.
+    /// Generates one scene illustration (PNG bytes) for the chosen phrase.
     /// Manual trigger from the scene-review step — never per-word, never
     /// automatic — so quota stays under control. Throws code 6 when the
     /// response carries no image (e.g. safety refusal or quota error,
-    /// which surfaces earlier as HTTP 429).
-    static func generateSceneImage(fact: String, word: String, tie: String,
+    /// which surfaces earlier as HTTP 429). `story` is the pre-composed
+    /// sentence describing how every phrase word interacts.
+    static func generateSceneImage(fact: String, phrase: String, story: String,
                                    model: String = defaultImageModel) async throws -> Data {
         let key = apiKey
         guard !key.isEmpty else {
@@ -226,13 +277,15 @@ enum GeminiService {
             ])
         }
         let prompt = """
-        Cheerful children's picture-book illustration. ONE single \
-        unmistakable hero subject dominates the center of the frame, drawn \
-        LARGE so it fills much of the picture: "\(word)". Around it, a \
-        simple vivid scene showing this action: \(tie). The scene \
-        illustrates this fact: "\(fact)". Keep the background simple and \
-        uncluttered so the hero subject stands out; bold shapes, bright \
-        colors, clear silhouette.
+        Cheerful children's picture-book illustration. STRICT RULE: absolutely \
+        no text, words, letters, numbers, captions, labels, signs, or \
+        watermarks anywhere in the image — purely visual, no typography at \
+        all. Anything that would normally carry writing (signs, books, \
+        labels, posters) must be rendered completely blank. Draw THESE \
+        mnemonic objects prominently and unmistakable, each LARGE and easy \
+        to point out: \(phrase.phraseWords.map { "\"\($0)\"" }.joined(separator: ", ")). \
+        The single scene it must show: \(story). The scene illustrates this \
+        fact: "\(fact)". Bold shapes, bright colors, clear silhouettes.
         """
         let body: [String: Any] = [
             "contents": [["role": "user", "parts": [["text": prompt]]]],
@@ -252,4 +305,11 @@ enum GeminiService {
             NSLocalizedDescriptionKey: "Image model returned no picture\(text.isEmpty ? "." : ": \(String(text.prefix(160)))")"
         ])
     }
+}
+
+// MARK: - Prompt helpers
+
+fileprivate extension String {
+    /// Splits a mnemonic phrase into its words, for listing in the prompt.
+    var phraseWords: [String] { split { $0.isWhitespace }.map(String.init).filter { !$0.isEmpty } }
 }

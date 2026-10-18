@@ -8,39 +8,18 @@ import SwiftData
 // Your Quizzes (persistent quizzes the user builds from a gallery group).
 
 struct PracticeScreen: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \SavedQuiz.createdAt, order: .reverse) private var quizzes: [SavedQuiz]
-
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             Image("HomeBackground").resizable().scaledToFill().ignoresSafeArea().opacity(0.9)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 24) {
                     Text("PRACTICE")
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                         .padding(.top, 8)
 
                     GradientNavLink(title: "Daily Quiz", destination: DailyQuizScreen())
-                        .padding(.bottom, 8)
-
-                    if !quizzes.isEmpty {
-                        HStack {
-                            Text("YOUR QUIZZES")
-                                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
-                            Spacer()
-                            Text("\(quizzes.count)")
-                                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
-                        }
-                        ForEach(quizzes) { quiz in
-                            QuizRow(quiz: quiz) {
-                                modelContext.delete(quiz)
-                                try? modelContext.save()
-                            }
-                        }
-                    }
-
                     GradientNavLink(title: "Your Quizzes", destination: YourQuizzesScreen())
                 }
                 .padding(.horizontal, 50)
@@ -208,7 +187,7 @@ struct YourQuizzesScreen: View {
     }
 }
 
-// MARK: Shared quiz row — listed on both the Practice hub and Your Quizzes
+// MARK: Shared quiz row — the tappable, deletable listing of one saved quiz
 
 /// A saved quiz rendered as a tappable row: plays the quiz, records the
 /// attempt, and offers Remove through the ⋯ menu. `onDelete` does the actual

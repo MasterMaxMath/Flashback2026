@@ -29,11 +29,13 @@ enum CloudflareImageService {
             && token != "PASTE_TOKEN_HERE" && accountID != "PASTE_ACCOUNT_ID_HERE"
     }
 
-    /// Generates one scene illustration (image bytes) for the chosen word.
-    /// Workers AI image endpoints return raw image bytes; some gateways
-    /// wrap them in a `{result: {image: base64}}` JSON envelope — both are
-    /// handled. Manual trigger from scene review only, one picture per scene.
-    static func generateSceneImage(fact: String, word: String, tie: String,
+    /// Generates one scene illustration (image bytes) for the chosen
+    /// phrase. Workers AI image endpoints return raw image bytes; some
+    /// gateways wrap them in a `{result: {image: base64}}` JSON envelope —
+    /// both are handled. Manual trigger from scene review only, one picture
+    /// per scene. `story` is a pre-composed sentence describing how every
+    /// phrase word interacts (task 1 requirement: story before image).
+    static func generateSceneImage(fact: String, phrase: String, story: String,
                                    model: String = defaultModel) async throws -> Data {
         guard hasCredentials else {
             throw NSError(domain: "Cloudflare", code: 1, userInfo: [
@@ -46,13 +48,15 @@ enum CloudflareImageService {
             ])
         }
         let prompt = """
-        Cheerful children's picture-book illustration. ONE single \
-        unmistakable hero subject dominates the center of the frame, drawn \
-        LARGE so it fills much of the picture: "\(word)". Around it, a \
-        simple vivid scene showing this action: \(tie). The scene \
-        illustrates this fact: "\(fact)". Keep the background simple and \
-        uncluttered so the hero subject stands out; bold shapes, bright \
-        colors, clear silhouette.
+        Cheerful children's picture-book illustration. STRICT RULE: absolutely \
+        no text, words, letters, numbers, captions, labels, signs, or \
+        watermarks anywhere in the image — purely visual, no typography at \
+        all. Anything that would normally carry writing (signs, books, \
+        labels, posters) must be rendered completely blank. Draw THESE \
+        mnemonic objects prominently and unmistakable, each LARGE and easy \
+        to point out: \(phrase.phraseWords.map { "\"\($0)\"" }.joined(separator: ", ")). \
+        The single scene it must show: \(story). The scene illustrates this \
+        fact: "\(fact)". Bold shapes, bright colors, clear silhouettes.
         """
         // Note: flux models reject unevaluated properties, so there is no
         // negative_prompt field — everything lives in the prompt text.
@@ -102,4 +106,11 @@ enum CloudflareImageService {
             NSLocalizedDescriptionKey: "Cloudflare returned no picture (content-type: \(mime))."
         ])
     }
+}
+
+// MARK: - Prompt helpers
+
+fileprivate extension String {
+    /// Splits a mnemonic phrase into its words, for listing in the prompt.
+    var phraseWords: [String] { split { $0.isWhitespace }.map(String.init).filter { !$0.isEmpty } }
 }

@@ -41,6 +41,7 @@ struct AssistedMnemonicView: View {
     @State private var aiLoading = false
     @State private var aiError: String? = nil
     @State private var sceneImageData: Data? = nil
+    @State private var sceneStory: String? = nil
     @State private var imageLoading = false
     @State private var imageError: String? = nil
     @State private var imageAttempted = false
@@ -131,9 +132,9 @@ struct AssistedMnemonicView: View {
         VStack(spacing: 16) {
             factCard
 
-            Button("Find words") {
+            Button("Find phrases") {
                 candidates = candidatesFor(digits: digits)
-                dlog("Find words tapped — fact has digits '\(digits)'; showing \(candidates.count) from \(candidateSource).")
+                dlog("Find phrases tapped — fact has digits '\(digits)'; showing \(candidates.count) from \(candidateSource).")
                 step = .candidates
             }
             .font(.headline).foregroundColor(.black)
@@ -155,7 +156,7 @@ struct AssistedMnemonicView: View {
 
             if candidates.isEmpty {
                 VStack(spacing: 8) {
-                    Text("No words for “\(digits)” yet — not from Apple Intelligence, not from the built-in search.")
+                    Text("No phrases for “\(digits)” yet — not from Apple Intelligence, not from the built-in search.")
                         .font(.subheadline).foregroundColor(.white.opacity(0.75))
                         .multilineTextAlignment(.center)
                     Text("The demo fact (212) has Wonton, Undine and Antoine ready.")
@@ -174,12 +175,13 @@ struct AssistedMnemonicView: View {
                 .padding().cardStyle()
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("PICK A WORD FOR \(digits) · VIA \(candidateSource.uppercased())")
+                    Text("PICK A PHRASE FOR \(digits) · FULL NUMBER COVERED · VIA \(candidateSource.uppercased())")
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                     ForEach(candidates) { c in
                         Button {
                             selected = c
                             artVariant = 1
+                            sceneStory = nil
                             dlog("Selected '\(c.word)' for scene review.")
                             step = .scene
                         } label: {
@@ -230,7 +232,7 @@ struct AssistedMnemonicView: View {
                     Text(err).font(.caption).foregroundColor(.orange)
                         .multilineTextAlignment(.center)
                 }
-                Button(aiAttemptedDigits == nil ? "Suggest words with AI" : "Regenerate suggestions") {
+                Button(aiAttemptedDigits == nil ? "Suggest phrases with AI" : "Regenerate suggestions") {
                     Task { await runAICandidates() }
                 }
                 .font(.subheadline.bold()).foregroundColor(.black)
@@ -244,23 +246,42 @@ struct AssistedMnemonicView: View {
         }
     }
 
-    /// Checks provider-proposed words on-device: single word only, and its
-    /// code (bundled CMU phonetics first, naive encoder as backup) must
-    /// equal the target digits exactly. Returns at most 3 survivors.
+    /// Checks provider-proposed phrases on-device: split into words, each
+    /// word's code (bundled CMU phonetics first, naive encoder as backup)
+    /// concatenated in order must equal the target digits exactly — the
+    /// phrase must cover the FULL number, no digit missing or extra.
+    /// Returns at most 3 survivors.
     private func verify(_ raw: [(word: String, tie: String)], against target: String) -> [MockCandidate] {
         var valid: [MockCandidate] = []
         for c in raw {
             let trimmed = c.word.trimmingCharacters(in: .whitespaces)
-            let single = !trimmed.contains(" ")
-            // Real CMU phonetics first; naive encoder only when the
-            // bundled database does not know the word at all.
-            let code = MajorTools.digits(for: trimmed) ?? MajorSystem.digits(for: trimmed)
-            let via = MajorTools.digits(for: trimmed) == nil ? "naive" : "db"
-            if single && code == target {
-                dlog("ACCEPT '\(c.word)' via \(via) — code \(code) matches \(target).")
-                valid.append(MockCandidate(word: c.word, tie: c.tie))
+            let words = trimmed.split { $0.isWhitespace }.map(String.init).filter { !$0.isEmpty }
+            guard !words.isEmpty else {
+                dlog("REJECT '' — empty candidate.")
+                continue
+            }
+            // Per word: bundled CMU phonetics first; the naive letter
+            // encoder only when the database does not know the word.
+            var concat = ""
+            var via = "db"
+            var unknown = false
+            for word in words {
+                if let db = MajorTools.digits(for: word) {
+                    concat += db
+                } else if !MajorSystem.digits(for: word).isEmpty {
+                    via = "naive"
+                    concat += MajorSystem.digits(for: word)
+                } else {
+                    unknown = true
+                    break
+                }
+            }
+            let viaSuffix = unknown ? "word with no codable consonants" : via
+            if !unknown && concat == target {
+                dlog("ACCEPT '\(trimmed)' via \(via) — codes concatenate to \(concat) = \(target).")
+                valid.append(MockCandidate(word: trimmed, tie: c.tie))
             } else {
-                dlog("REJECT '\(c.word)' via \(via) — single=\(single), code '\(code)' vs '\(target)'.")
+                dlog("REJECT '\(trimmed)' — \(viaSuffix), codes '\(concat)' vs '\(target)'.")
             }
             if valid.count == 3 { break }
         }
@@ -416,21 +437,48 @@ struct AssistedMnemonicView: View {
         }
     }
 
-    /// Manual image fetch: one picture per scene, stale art cleared first.
-    /// Cloudflare Workers AI when configured, otherwise Gemini image.
+    /// Manual image fetch, in two stages. Stage 1 (story): Apple
+    /// Intelligence / Gemini text composes one vivid sentence describing
+    /// how EVERY word of the chosen phrase interacts to express the fact —
+    /// deterministic tie-line fallback so this never blocks. Stage 2
+    /// (image): Cloudflare Workers AI (preferred) or Gemini image renders
+    /// the story. Cloudflare when configured, otherwise Gemini image.
     private func runSceneImage(for c: MockCandidate) async {
         let provider = CloudflareImageService.hasCredentials ? "Cloudflare" : "Gemini"
-        dlog("Scene image requested (\(provider)) — word: '\(c.word)', fact: '\(factText.prefix(50))'.")
+        dlog("Scene image requested (\(provider)) — phrase: '\(c.word)', fact: '\(factText.prefix(50))'.")
         imageLoading = true
         imageError = nil
         imageAttempted = true
         sceneImageData = nil
         defer { imageLoading = false }
+
+        // Stage 1: the story feeds the image model.
+        var story = c.tie
+        let storyProviders: [(name: String, run: () async throws -> String)] = [
+            ("Apple Intelligence story", {
+                try await MajorLLMService.generateStory(fact: factText, phrase: c.word, tie: c.tie)
+            }),
+            ("Gemini story", {
+                try await GeminiService.generateStory(fact: factText, phrase: c.word, tie: c.tie)
+            })
+        ]
+        for storyProvider in storyProviders {
+            do {
+                sceneStory = try await storyProvider.run()
+                story = sceneStory ?? c.tie
+                dlog("\(storyProvider.name): '\(story)'.")
+                break
+            } catch {
+                dlog("\(storyProvider.name) failed: \(error.localizedDescription) — trying next.")
+            }
+        }
+
+        // Stage 2: the picture.
         do {
             if CloudflareImageService.hasCredentials {
-                sceneImageData = try await CloudflareImageService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
+                sceneImageData = try await CloudflareImageService.generateSceneImage(fact: factText, phrase: c.word, story: story)
             } else {
-                sceneImageData = try await GeminiService.generateSceneImage(fact: factText, word: c.word, tie: c.tie)
+                sceneImageData = try await GeminiService.generateSceneImage(fact: factText, phrase: c.word, story: story)
             }
             dlog("Scene image ready (\(provider)) — \(sceneImageData?.count ?? 0) bytes.")
         } catch {
@@ -442,11 +490,12 @@ struct AssistedMnemonicView: View {
     // MARK: - 5: Gallery
 
     /// Inserts the accepted scene into the gallery under the chosen tag.
-    /// Art bytes ride along in `sceneImageData` (external storage).
+    /// Art bytes ride along in `sceneImageData` (external storage); the
+    /// remembered tie is the composed story when one exists.
     private func saveSelected(tag: String) {
         guard let c = selected else { return }
         let asset = sceneImageData == nil ? "no art" : "\(sceneImageData!.count) bytes art"
-        let binding = MnemonicBinding(digits: digits, word: c.word, tie: c.tie)
+        let binding = MnemonicBinding(digits: digits, word: c.word, tie: sceneStory ?? c.tie)
         modelContext.insert(GalleryCard(
             fact: factText, bindings: [binding], tag: tag, imageData: sceneImageData
         ))
@@ -464,6 +513,7 @@ struct AssistedMnemonicView: View {
                 candidates = []
                 selected = nil
                 sceneImageData = nil
+                sceneStory = nil
                 imageError = nil
                 imageAttempted = false
                 step = .entry
@@ -490,9 +540,11 @@ struct AssistedMnemonicView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.25)))
     }
 
-    /// Guaranteed algorithmic fallback. Never empty for non-empty digits:
-    /// exact single-word matches first, then per-chunk peg words (the
-    /// chunked story always succeeds). Sets `candidateSource` + debug log.
+    /// Guaranteed algorithmic fallback. Never empty for non-empty digits,
+    /// and every candidate covers the FULL number: beam-searched multi-word
+    /// phrases from the bundled DB first, then exact single words, and
+    /// finally the chunked-peg story as ONE combined phrase. Sets
+    /// `candidateSource` + debug log.
     private func candidatesFor(digits target: String) -> [MockCandidate] {
         algorithmicCandidates(digits: target)
     }
@@ -508,25 +560,41 @@ struct AssistedMnemonicView: View {
             dlog("Algorithmic fallback: 212 → demo trio (Wonton/Undine/Antoine, all verified 212).")
             return Self.demoCandidates
         }
+        let dbAvailable = MajorTools.isAvailable
+
+        // 1. Multi-word phrases covering the full number (beam search).
+        if dbAvailable, target.count >= 2 {
+            let phrases = MajorTools.to_phrases(target, limit: 3)
+            if !phrases.isEmpty {
+                candidateSource = "bundled DB phrases"
+                dlog("Algorithmic fallback: \(phrases.count) full-number phrase(s): \(phrases.map { $0.words.joined(separator: " ") }.joined(separator: " | ")).")
+                return phrases.map {
+                    MockCandidate(
+                        word: $0.words.joined(separator: " "),
+                        tie: "Encodes all of \(target) in \($0.words.count) words — verified on-device"
+                    )
+                }
+            }
+        }
+
+        // 2. One word that spans the whole number by itself.
         let exact = MajorTools.to_words(target, limit: 3)
         if !exact.isEmpty {
             candidateSource = "bundled database (\(exact.count) exact)"
-            dlog("Algorithmic fallback: \(exact.count) exact match(es): \(exact.map(\.word).joined(separator: ", ")). DB available: \(MajorTools.isAvailable).")
+            dlog("Algorithmic fallback: \(exact.count) exact match(es): \(exact.map(\.word).joined(separator: ", ")). DB available: \(dbAvailable).")
             return exact.map {
                 MockCandidate(word: $0.word, tie: "Covers \(target) exactly — verified on-device")
             }
         }
+
+        // 3. Chunked peg words, presented as ONE ready-made phrase so the
+        // user never has to assemble chunks by hand.
         let result = MajorSystem.search(target)
-        var seen = Set<String>()
-        var pegs: [MockCandidate] = []
-        for (chunk, word) in zip(result.chunkCodes, result.chunkedStory) {
-            guard seen.insert(word).inserted else { continue }
-            pegs.append(MockCandidate(word: word, tie: "Covers \(chunk) — pair it into a scene"))
-            if pegs.count == 3 { break }
-        }
-        candidateSource = "bundled database (none) + peg story"
-        dlog("Algorithmic fallback: no exact match in DB — chunked pegs: \(pegs.map(\.word).joined(separator: ", ")).")
-        return pegs
+        let pegPhrase = result.chunkedStory.joined(separator: " ")
+        candidateSource = "peg story (chunked, combined)"
+        dlog("Algorithmic fallback: no DB match — chunked pegs combined into one phrase: '\(pegPhrase)' (chunks \(result.chunkCodes.joined(separator: "-"))).")
+        return [MockCandidate(word: pegPhrase.isEmpty ? target : pegPhrase,
+                              tie: "Covers \(target) chunk by chunk — verified on-device")]
     }
 }
 

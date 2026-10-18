@@ -62,17 +62,19 @@ struct QuizPlayView: View {
                     .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
             }
 
-            // Grounding: the scene it came from. Art on the left (as in the
-            // gallery), fact on the right.
+            // Grounding: the scene it came from. The art is HIDDEN until the
+            // question is answered — it depicts the mnemonic objects, so
+            // showing it upfront gives the answer away. Once picked, the
+            // scene is revealed as reinforcement.
             HStack(alignment: .top, spacing: 14) {
-                if let art {
+                if picked != nil, let art {
                     Image(uiImage: art).resizable().scaledToFill()
                         .frame(width: 110, height: 110).clipped()
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.15)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.6)))
                 } else {
                     Color.white.opacity(0.08)
-                        .overlay(Image(systemName: "photo").foregroundColor(.white.opacity(0.5)))
+                        .overlay(Image(systemName: "photo").foregroundColor(.white.opacity(0.35)))
                         .frame(width: 110, height: 110)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.15)))

@@ -27,16 +27,16 @@ import FoundationModels
 @available(iOS 26.0, *)
 @Generable
 struct WordCandidate {
-    @Guide(description: "One single Major System word whose consonant codes equal the target digits")
+    @Guide(description: "One Major System phrase: 2-5 words joined by spaces whose word codes concatenated in order equal the target digits")
     var word: String
-    @Guide(description: "One short line tying the word to the fact being memorized")
+    @Guide(description: "One short line tying the phrase to the fact being memorized")
     var tie: String
 }
 
 @available(iOS 26.0, *)
 @Generable
 struct CandidateList {
-    @Guide(description: "Exactly three candidate words")
+    @Guide(description: "Exactly three candidate phrases, each 2-5 words, each encoding the full target digits")
     var candidates: [WordCandidate]
 }
 
@@ -134,34 +134,66 @@ enum MajorLLMService {
         let tie: String
     }
 
-    /// Asks Apple Intelligence for 3 single Major words for the fact's
-    /// number. The model MUST call the `to_words` tool (bundled database)
-    /// for the digits and pick only from its results. Results are still
-    /// re-checked by callers — trust, but verify.
+    /// Asks Apple Intelligence for 3 Major System phrases that TOGETHER
+    /// encode the fact's full number. The model MUST call the `to_words`
+    /// tool (bundled database) — full digits first, then chunks — and build
+    /// phrases only from its results. Callers still re-verify every word,
+    /// concatenated, on-device — trust, but verify.
     @available(iOS 26.0, *)
     static func generateCandidates(fact: String, digits: String) async throws -> [AICandidate] {
         #if canImport(FoundationModels)
         let instructions = """
-        You turn numbers into Major System words. Mapping: 0=S/Z, 1=T/D/TH, \
+        You build Major System mnemonic PHRASES. Mapping: 0=S/Z, 1=T/D/TH, \
         2=N, 3=M, 4=R, 5=L, 6=SH/CH/J/soft-G, 7=K/hard-C/hard-G/Q, 8=F/V/PH, \
         9=P/B. Vowels and W/H/Y count for nothing and are skipped. You have \
         a tool called to_words that searches a 62,000-word phonetic \
-        database. ALWAYS call to_words with the target digits before \
-        answering, and suggest words ONLY from what it returns. Worked \
-        examples: 404 lives in "razor" (R-Z-R), 431 lives in "remote" \
-        (R-M-T). You may call to_words several times, reasoning between \
-        calls: first the full number, then shorter chunks (2-4 digits) if \
-        there is no exact match. Reply with single words only, never phrases.
+        database. ALWAYS call it with the target digits first, then again \
+        with shorter chunks (2-4 digits) as needed. A candidate is a PHRASE \
+        of 2-5 words assembled ONLY from words to_words returned; the \
+        concatenated consonant codes of its words, in order, must equal the \
+        FULL target digits exactly — every digit covered, none missing, \
+        none extra. Example: 404 → "grandson ray dive" would be wrong \
+        (codes 42-4-1); "razor" alone is right when it spans everything \
+        (R-Z-R). The phrase should evoke the fact's meaning. Reply with \
+        phrases only.
         """
         let session = LanguageModelSession(tools: [ToWordsTool()], instructions: instructions)
         let prompt = """
         Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
-        with "\(digits)" — retry with shorter chunks if it finds nothing — \
-        then suggest exactly 3 single words from the gathered results. For \
-        each word, write a one-line tie to the fact explaining why it fits.
+        with "\(digits)" and with useful chunks of it, then suggest exactly \
+        3 phrases (2-5 words each). Every phrase's words together must code \
+        to the full \(digits). For each phrase, write a one-line tie to the \
+        fact explaining how the pictured scene expresses the fact's meaning.
         """
         let response = try await session.respond(to: prompt, generating: CandidateList.self)
         return response.content.candidates.map { AICandidate(word: $0.word, tie: $0.tie) }
+        #else
+        throw NSError(domain: "MajorLLM", code: -1,
+                      userInfo: [NSLocalizedDescriptionKey: "FoundationModels unavailable."])
+        #endif
+    }
+
+    /// Writes the visual STORY that the image model will illustrate: how
+    /// every word of the chosen phrase interacts to express the fact.
+    /// Plain text generation — no tools, no schema.
+    @available(iOS 26.0, *)
+    static func generateStory(fact: String, phrase: String, tie: String) async throws -> String {
+        #if canImport(FoundationModels)
+        let instructions = """
+        You compose one-sentence storyboards for picture-book illustrations. \
+        Rules: a single vivid sentence, 15-30 words, present tense, \
+        describing a concrete physical scene where ALL of the given objects \
+        clearly interact to act out the given meaning. Name every object \
+        directly. No dialogue or abstract ideas.
+        """
+        let session = LanguageModelSession(instructions: instructions)
+        let prompt = """
+        Meaning to express: "\(fact)". Scene hint: "\(tie)". The mnemonic \
+        objects that must appear and interact: "\(phrase)". Write the story \
+        sentence only — no quotes, no preamble.
+        """
+        let response = try await session.respond(to: prompt)
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         #else
         throw NSError(domain: "MajorLLM", code: -1,
                       userInfo: [NSLocalizedDescriptionKey: "FoundationModels unavailable."])
