@@ -132,6 +132,7 @@ struct PalaceListView: View {
 struct PalaceNameSheet: View {
     let title: String
     let confirm: String
+    var hint: String = "Use a route you already know by heart — the more familiar, the better."
     let onConfirm: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -156,7 +157,7 @@ struct PalaceNameSheet: View {
                     .submitLabel(.done)
                     .onSubmit(commit)
 
-                Text("Use a route you already know by heart — the more familiar, the better.")
+                Text(hint)
                     .font(.caption).foregroundColor(.white.opacity(0.6))
 
                 Button(confirm, action: commit)

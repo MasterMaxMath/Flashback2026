@@ -107,7 +107,12 @@ struct QuizPlayView: View {
         Button {
             guard picked == nil else { return }
             picked = i
-            if isCorrect { correctCount += 1 }
+            if isCorrect {
+                correctCount += 1
+                Haptics.success()
+            } else {
+                Haptics.error()
+            }
         } label: {
             HStack(spacing: 10) {
                 Text(option)
@@ -153,6 +158,7 @@ struct QuizPlayView: View {
     }
 
     private func advance() {
+        Haptics.tap()
         picked = nil
         if index + 1 >= questions.count { finish() } else { index += 1 }
     }

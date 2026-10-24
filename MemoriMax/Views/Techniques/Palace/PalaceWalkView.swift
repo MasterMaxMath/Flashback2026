@@ -116,6 +116,7 @@ struct PalaceWalkView: View {
                 }
 
                 Button {
+                    Haptics.reveal()
                     if revealed.contains(station.id) { revealed.remove(station.id) }
                     else { revealed.insert(station.id) }
                 } label: {
@@ -151,8 +152,12 @@ struct PalaceWalkView: View {
 
     private var bottomNav: some View {
         HStack {
-            Button("Back") { if index > 0 { withAnimation { index -= 1 } } }
-                .disabled(index == 0).foregroundColor(index == 0 ? .gray : .white)
+            Button("Back") {
+                guard index > 0 else { return }
+                Haptics.tap()
+                withAnimation { index -= 1 }
+            }
+            .disabled(index == 0).foregroundColor(index == 0 ? .gray : .white)
             Spacer()
             HStack(spacing: 5) {
                 ForEach(stations.indices, id: \.self) { i in
@@ -162,8 +167,11 @@ struct PalaceWalkView: View {
             }
             Spacer()
             if index < stations.count - 1 {
-                Button("Next") { withAnimation { index += 1 } }
-                    .foregroundColor(.white).bold()
+                Button("Next") {
+                    Haptics.tap()
+                    withAnimation { index += 1 }
+                }
+                .foregroundColor(.white).bold()
             } else {
                 Button("Done") { dismiss() }
                     .foregroundColor(.black).bold()

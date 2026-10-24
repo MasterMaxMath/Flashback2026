@@ -24,7 +24,7 @@ typealias GalleryCard = GallerySchemaV5.GalleryCard
 /// can reach the gallery (and the quizzes) never mix implicit stores.
 extension View {
     func demoModelContainer() -> some View {
-        modelContainer(for: [GalleryCard.self, SavedQuiz.self, MemoryPalace.self], inMemory: true)
+        modelContainer(for: [GalleryCard.self, SavedQuiz.self, MemoryPalace.self, PegList.self, ReviewRecord.self], inMemory: true)
     }
 }
 
@@ -145,23 +145,44 @@ enum GallerySchemaV5: VersionedSchema {
     }
 }
 
+// MARK: - V6: adds peg lists (everything else unchanged)
+
+enum GallerySchemaV6: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(6, 0, 0) }
+    static var models: [any PersistentModel.Type] {
+        [GallerySchemaV5.GalleryCard.self, SavedQuiz.self, MemoryPalace.self, PegList.self]
+    }
+}
+
+// MARK: - V7: adds review scheduling (everything else unchanged)
+
+enum GallerySchemaV7: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(7, 0, 0) }
+    static var models: [any PersistentModel.Type] {
+        [GallerySchemaV5.GalleryCard.self, SavedQuiz.self, MemoryPalace.self, PegList.self, ReviewRecord.self]
+    }
+}
+
 // MARK: - Migration
 //
-// V1 → V2 is custom (single-number cards → scenes). V2 → V3, V3 → V4 and
-// V4 → V5 are additive (new entities / a defaulted attribute), handled by
-// lightweight migrations.
+// V1 → V2 is custom (single-number cards → scenes). V2 → V3, V3 → V4,
+// V4 → V5, V5 → V6 and V6 → V7 are additive (new entities / a defaulted
+// attribute), handled by lightweight migrations.
 
 enum GalleryMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [GallerySchemaV1.self, GallerySchemaV2.self, GallerySchemaV3.self,
-         GallerySchemaV4.self, GallerySchemaV5.self]
+         GallerySchemaV4.self, GallerySchemaV5.self, GallerySchemaV6.self,
+         GallerySchemaV7.self]
     }
     static var stages: [MigrationStage] {
         [
             v1ToV2,
             .lightweight(fromVersion: GallerySchemaV2.self, toVersion: GallerySchemaV3.self),
             .lightweight(fromVersion: GallerySchemaV3.self, toVersion: GallerySchemaV4.self),
-            .lightweight(fromVersion: GallerySchemaV4.self, toVersion: GallerySchemaV5.self)
+            .lightweight(fromVersion: GallerySchemaV4.self, toVersion: GallerySchemaV5.self),
+            .lightweight(fromVersion: GallerySchemaV5.self, toVersion: GallerySchemaV6.self),
+            .lightweight(fromVersion: GallerySchemaV6.self, toVersion: GallerySchemaV7.self)
         ]
     }
 

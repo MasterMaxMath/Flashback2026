@@ -59,6 +59,7 @@ struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GalleryCard.createdAt, order: .reverse) private var cards: [GalleryCard]
     @Query(sort: \MemoryPalace.createdAt, order: .reverse) private var palaces: [MemoryPalace]
+    @Query(sort: \PegList.createdAt, order: .reverse) private var pegLists: [PegList]
 
     /// Cards for one technique, grouped by tag exactly as before — but only
     /// within that technique, so a "History" group can exist in two techniques.
@@ -90,7 +91,7 @@ struct GalleryView: View {
                 .padding().cardStyle()
             } else {
                 techniqueSection(.major)
-                techniqueSection(.peg)
+                pegSection
                 palacesSection
             }
         }
@@ -118,6 +119,73 @@ struct GalleryView: View {
         }
     }
 
+    private var pegSection: some View {
+        let grouped = groups(for: .peg)
+        let total = pegLists.count + count(for: .peg)
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(.peg, count: total)
+
+            if !pegLists.isEmpty {
+                Text("LISTS")
+                    .font(.caption2.monospaced()).foregroundColor(.white.opacity(0.45))
+                ForEach(pegLists) { list in
+                    pegListRow(list)
+                }
+            }
+
+            if grouped.isEmpty && pegLists.isEmpty {
+                emptyRow("No Peg System mnemonics yet.")
+            } else if !grouped.isEmpty {
+                if !pegLists.isEmpty {
+                    Text("SAVED MNEMONICS")
+                        .font(.caption2.monospaced()).foregroundColor(.white.opacity(0.45))
+                        .padding(.top, 2)
+                }
+                ForEach(grouped) { group in
+                    NavigationLink(destination: GalleryGroupView(tag: group.tag, technique: .peg)) {
+                        groupRow(group)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(group.tag), \(group.count) Peg System mnemonic\(group.count == 1 ? "" : "s")")
+                }
+            }
+        }
+    }
+
+    private func pegListRow(_ list: PegList) -> some View {
+        HStack(spacing: 0) {
+            NavigationLink(destination: PegWalkView(list: list)) {
+                HStack(spacing: 14) {
+                    Image(systemName: "list.number")
+                        .font(.body).foregroundColor(.green)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.08)).cornerRadius(12)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(list.name).font(.headline).foregroundColor(.white)
+                        Text(list.slots.isEmpty
+                             ? "No pegs yet"
+                             : "\(list.slots.count) peg\(list.slots.count == 1 ? "" : "s") · tap to drill")
+                            .font(.caption).foregroundColor(.white.opacity(0.65))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.bold()).foregroundColor(.white.opacity(0.5))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Drill \(list.name), \(list.slots.count) pegs")
+
+            NavigationLink(destination: PegBuilderView(list: list)) {
+                editBadge
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(list.name)")
+        }
+        .padding(12).cardStyle()
+    }
+
     private var palacesSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader(.palace, count: palaces.count)
@@ -125,11 +193,7 @@ struct GalleryView: View {
                 emptyRow("No Memory Palace routes yet.")
             } else {
                 ForEach(palaces) { palace in
-                    NavigationLink(destination: PalaceBuilderView(palace: palace)) {
-                        palaceRow(palace)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(palace.name), \(palace.stations.count) stops")
+                    palaceRow(palace)
                 }
             }
         }
@@ -174,24 +238,48 @@ struct GalleryView: View {
     }
 
     private func palaceRow(_ palace: MemoryPalace) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: "figure.walk")
-                .font(.body).foregroundColor(.green)
-                .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.08)).cornerRadius(12)
+        HStack(spacing: 0) {
+            NavigationLink(destination: PalaceWalkView(palace: palace)) {
+                HStack(spacing: 14) {
+                    Image(systemName: "figure.walk")
+                        .font(.body).foregroundColor(.green)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.08)).cornerRadius(12)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(palace.name).font(.headline).foregroundColor(.white)
-                Text(palace.stations.isEmpty
-                     ? "No stops yet"
-                     : "\(palace.stations.count) stop\(palace.stations.count == 1 ? "" : "s")")
-                    .font(.caption).foregroundColor(.white.opacity(0.65))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(palace.name).font(.headline).foregroundColor(.white)
+                        Text(palace.stations.isEmpty
+                             ? "No stops yet"
+                             : "\(palace.stations.count) stop\(palace.stations.count == 1 ? "" : "s") · tap to walk")
+                            .font(.caption).foregroundColor(.white.opacity(0.65))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.bold()).foregroundColor(.white.opacity(0.5))
+                }
+                .contentShape(Rectangle())
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.subheadline.bold()).foregroundColor(.white.opacity(0.5))
+            .buttonStyle(.plain)
+            .accessibilityLabel("Walk \(palace.name), \(palace.stations.count) stops")
+
+            NavigationLink(destination: PalaceBuilderView(palace: palace)) {
+                editBadge
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(palace.name)")
         }
         .padding(12).cardStyle()
+    }
+
+    /// Small secondary target for opening the builder from a gallery row.
+    private var editBadge: some View {
+        Image(systemName: "pencil")
+            .font(.subheadline.bold())
+            .foregroundColor(.white.opacity(0.75))
+            .frame(width: 38, height: 38)
+            .background(Color.white.opacity(0.08))
+            .clipShape(Circle())
+            .padding(.leading, 8)
     }
 
     /// Bundled demo art ("a razor hits a remote") so the war card shows a real

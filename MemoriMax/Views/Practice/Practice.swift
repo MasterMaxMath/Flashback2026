@@ -8,6 +8,25 @@ import SwiftData
 // Your Quizzes (persistent quizzes the user builds from a gallery group).
 
 struct PracticeScreen: View {
+    @Query(sort: \GalleryCard.createdAt, order: .reverse) private var cards: [GalleryCard]
+    @Query(sort: \MemoryPalace.createdAt, order: .reverse) private var palaces: [MemoryPalace]
+    @Query(sort: \PegList.createdAt, order: .reverse) private var pegLists: [PegList]
+    @Query private var records: [ReviewRecord]
+
+    private var reviewDue: Int {
+        ReviewBuilder.dueItems(cards: cards, palaces: palaces,
+                               pegLists: pegLists, records: records).count
+    }
+
+    private var reviewTotal: Int {
+        ReviewBuilder.items(cards: cards, palaces: palaces, pegLists: pegLists).count
+    }
+
+    private var reviewBadge: String? {
+        guard reviewTotal > 0 else { return nil }
+        return reviewDue > 0 ? "\(reviewDue) due" : "Clear"
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -19,10 +38,39 @@ struct PracticeScreen: View {
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                         .padding(.top, 8)
 
-                    GradientNavLink(title: "Daily Quiz", destination: DailyQuizScreen())
-                    GradientNavLink(title: "Your Quizzes", destination: YourQuizzesScreen())
+                    GradientNavLink(
+                        title: "Daily Review",
+                        subtitle: "Spaced active recall",
+                        systemImage: "arrow.triangle.2.circlepath",
+                        badge: reviewBadge,
+                        destination: ReviewView()
+                    )
+                    GradientNavLink(
+                        title: "Daily Quiz",
+                        subtitle: "A fresh set from your gallery each day",
+                        systemImage: "checkmark.circle",
+                        destination: DailyQuizScreen()
+                    )
+                    GradientNavLink(
+                        title: "Walk a Palace",
+                        subtitle: "Replay a route stop by stop",
+                        systemImage: "house",
+                        destination: WalkPickerView(kind: .palace)
+                    )
+                    GradientNavLink(
+                        title: "Peg Drill",
+                        subtitle: "Run the 00–99 pegs in order",
+                        systemImage: "list.number",
+                        destination: WalkPickerView(kind: .peg)
+                    )
+                    GradientNavLink(
+                        title: "Your Quizzes",
+                        subtitle: "Replay quizzes you've saved",
+                        systemImage: "square.stack.3d.up",
+                        destination: YourQuizzesScreen()
+                    )
                 }
-                .padding(.horizontal, 50)
+                .padding(.horizontal, 24)
                 .padding(.vertical, 20)
                 .padding(.bottom, 20)
             }

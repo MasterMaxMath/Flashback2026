@@ -25,26 +25,29 @@ struct TechniquesView: View {
 
                     technique(
                         title: "Major System",
-                        caption: "Turn numbers into words, then words into one scene."
+                        caption: "Turn numbers into words, then words into one scene.",
+                        systemImage: "number"
                     ) {
                         MajorIntroView()
                     }
 
                     technique(
                         title: "Peg System",
-                        caption: "Hang any list on the classic 0–99 peg words."
+                        caption: "Hang any list on the classic 0–99 peg words.",
+                        systemImage: "list.number"
                     ) {
-                        PegGeneratorView()
+                        PegIntroView()
                     }
 
                     technique(
                         title: "Memory Palace",
-                        caption: "Place what you learn along a route you already know."
+                        caption: "Place what you learn along a route you already know.",
+                        systemImage: "house"
                     ) {
                         PalaceIntroView()
                     }
                 }
-                .padding(.horizontal, 50)
+                .padding(.horizontal, 24)
                 .padding(.vertical, 20)
                 .padding(.bottom, 20)
             }
@@ -59,14 +62,15 @@ struct TechniquesView: View {
     private func technique<Destination: View>(
         title: String,
         caption: String,
+        systemImage: String,
         @ViewBuilder destination: () -> Destination
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            GradientNavLink(title: title, destination: destination())
-            Text(caption)
-                .font(.caption).foregroundColor(.white.opacity(0.65))
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        GradientNavLink(
+            title: title,
+            subtitle: caption,
+            systemImage: systemImage,
+            destination: destination()
+        )
     }
 }
 
