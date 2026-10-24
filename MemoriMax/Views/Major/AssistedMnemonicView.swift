@@ -191,7 +191,7 @@ struct AssistedMnemonicView: View {
                                 // the provider: Apple's and Gemini's words all
                                 // showcase exactly which digits they stand for.
                                 Text(codesLine(for: c.word))
-                                    .font(.caption.monospaced()).foregroundColor(.green)
+                                    .font(.caption.monospaced()).rainbow()
                                 Text(c.tie).font(.caption).foregroundColor(.white.opacity(0.65))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -377,7 +377,7 @@ struct AssistedMnemonicView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding().background(Color.white.opacity(0.08)).cornerRadius(14)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.6)))
+                .rainbowRim(cornerRadius: 14)
 
                 sceneArtView(for: c)
 
@@ -422,7 +422,7 @@ struct AssistedMnemonicView: View {
                 .frame(maxHeight: 220)
                 .frame(maxWidth: .infinity)
                 .cornerRadius(14)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.6)))
+                .rainbowRim(cornerRadius: 14)
         } else if imageLoading {
             HStack(spacing: 10) {
                 ProgressView().tint(.white)
@@ -550,7 +550,7 @@ struct AssistedMnemonicView: View {
                 .font(.headline).foregroundColor(.white).lineSpacing(3)
             if !digits.isEmpty {
                 Text(digits.map(String.init).joined(separator: " "))
-                    .font(.caption.monospaced()).foregroundColor(.green)
+                    .font(.caption.monospaced()).rainbow()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

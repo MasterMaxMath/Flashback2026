@@ -104,7 +104,7 @@ struct PalaceBuilderView: View {
                 Text("\(index + 1)")
                     .font(.headline).foregroundColor(.black)
                     .frame(width: 30, height: 30)
-                    .background(Color.green).cornerRadius(15)
+                    .background(RainbowGradient()).cornerRadius(15)
 
                 Button {
                     renameText = station.location
@@ -153,7 +153,7 @@ struct PalaceBuilderView: View {
                         .lineLimit(2)
                     ForEach(station.bindings, id: \.self) { b in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                            Text(b.digits).font(.caption.monospaced()).rainbow()
                             Text(b.word).font(.subheadline.bold()).foregroundColor(.white)
                         }
                     }

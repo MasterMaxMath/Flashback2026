@@ -52,17 +52,14 @@ struct SaveTagSheet: View {
                             Button { selected = t } label: {
                                 HStack(spacing: 10) {
                                     Image(systemName: selected == t ? "largecircle.fill.circle" : "circle")
-                                        .foregroundColor(selected == t ? .green : .white.opacity(0.5))
+                                    .rainbow(active: selected == t, fallback: Color.white.opacity(0.5))
                                     Text(t).font(.body).foregroundColor(.white)
                                     Spacer()
                                 }
                                 .padding().frame(maxWidth: .infinity, alignment: .leading)
                                 .background(Color.white.opacity(selected == t ? 0.14 : 0.06))
                                 .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(selected == t ? Color.green.opacity(0.7) : Color.white.opacity(0.2))
-                                )
+                                .rainbowRim(cornerRadius: 12, active: selected == t, inactiveColor: Color.white.opacity(0.2))
                             }
                             .buttonStyle(.plain)
                         }

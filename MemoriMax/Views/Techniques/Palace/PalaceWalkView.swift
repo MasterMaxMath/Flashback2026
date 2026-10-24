@@ -98,7 +98,7 @@ struct PalaceWalkView: View {
                         ForEach(station.bindings, id: \.self) { b in
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                                    Text(b.digits).font(.caption.monospaced()).rainbow()
                                     Text(b.word).font(.headline).foregroundColor(.white)
                                 }
                                 if !b.tie.isEmpty {

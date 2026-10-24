@@ -112,7 +112,7 @@ struct PegGeneratorView: View {
                         Text(pair.0)
                             .font(.caption.monospaced()).foregroundColor(.black)
                             .frame(width: 34, height: 24)
-                            .background(Color.green).cornerRadius(6)
+                            .background(RainbowGradient()).cornerRadius(6)
                         Text(pair.1).font(.subheadline.bold()).foregroundColor(.white)
                         Spacer()
                     }

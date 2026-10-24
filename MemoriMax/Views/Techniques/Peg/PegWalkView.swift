@@ -80,7 +80,7 @@ struct PegWalkView: View {
             VStack(spacing: 20) {
                 VStack(spacing: 4) {
                     Text("PEG \(slot.number)")
-                        .font(.caption.monospaced()).foregroundColor(.green)
+                        .font(.caption.monospaced()).rainbow()
                     Text(slot.pegWord)
                         .font(.system(size: 40, weight: .black))
                         .foregroundColor(.white).multilineTextAlignment(.center)
@@ -96,7 +96,7 @@ struct PegWalkView: View {
                         ForEach(slot.bindings, id: \.self) { b in
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                                    Text(b.digits).font(.caption.monospaced()).rainbow()
                                     Text(b.word).font(.headline).foregroundColor(.white)
                                 }
                                 if !b.tie.isEmpty {

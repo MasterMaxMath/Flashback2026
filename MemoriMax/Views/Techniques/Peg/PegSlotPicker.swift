@@ -81,7 +81,7 @@ struct PegSlotPicker: View {
                 } label: {
                     VStack(spacing: 2) {
                         Text(pair.0)
-                            .font(.caption.monospaced()).foregroundColor(.green)
+                            .font(.caption.monospaced()).rainbow()
                         Text(pair.1)
                             .font(.caption2).foregroundColor(.white)
                             .lineLimit(1).minimumScaleFactor(0.7)
@@ -107,7 +107,7 @@ struct PegSlotPicker: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("PEG \(selectedNumber ?? "")")
-                        .font(.caption.monospaced()).foregroundColor(.green)
+                        .font(.caption.monospaced()).rainbow()
                     Text(word)
                         .font(.system(size: 40, weight: .black)).foregroundColor(.white)
                 }
@@ -168,18 +168,17 @@ struct PegSlotPicker: View {
                         .lineLimit(2).multilineTextAlignment(.leading)
                     if let first = card.scene.first {
                         Text("\(first.digits) · \(first.word)")
-                            .font(.caption.monospaced()).foregroundColor(.green)
+                            .font(.caption.monospaced()).rainbow()
                     }
                 }
                 Spacer()
                 Image(systemName: pickedCard === card ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(pickedCard === card ? .green : .white.opacity(0.4))
+                    .rainbow(active: pickedCard === card, fallback: Color.white.opacity(0.4))
             }
             .padding(10)
             .background(Color.white.opacity(pickedCard === card ? 0.14 : 0.05))
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12)
-                .stroke(pickedCard === card ? Color.green.opacity(0.6) : Color.white.opacity(0.12)))
+            .rainbowRim(cornerRadius: 12, active: pickedCard === card, inactiveColor: Color.white.opacity(0.12))
         }
         .buttonStyle(.plain)
     }

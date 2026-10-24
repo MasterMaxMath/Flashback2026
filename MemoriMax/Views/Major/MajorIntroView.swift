@@ -285,7 +285,9 @@ struct MajorIntroView: View {
             }
             .font(.subheadline.bold()).foregroundColor(.black)
             .frame(maxWidth: .infinity).padding(14)
-            .background(selfTestRevealed ? Color.green : Color.white)
+            .background {
+                if selfTestRevealed { RainbowGradient() } else { Color.white }
+            }
             .cornerRadius(12)
         }
     }
@@ -322,7 +324,9 @@ struct MajorIntroView: View {
             }
             .font(.subheadline.bold()).foregroundColor(.black)
             .frame(maxWidth: .infinity).padding(14)
-            .background(finalWordsRevealed ? Color.green : Color.white)
+            .background {
+                if finalWordsRevealed { RainbowGradient() } else { Color.white }
+            }
             .cornerRadius(12)
 
             Button(finalDatesRevealed ? "431 and 404" : "Reveal the two dates") {
@@ -330,7 +334,9 @@ struct MajorIntroView: View {
             }
             .font(.subheadline.bold()).foregroundColor(.black)
             .frame(maxWidth: .infinity).padding(14)
-            .background(finalDatesRevealed ? Color.green : Color.white)
+            .background {
+                if finalDatesRevealed { RainbowGradient() } else { Color.white }
+            }
             .cornerRadius(12)
 
             Text("If both came back, you just felt the whole method: the scene survived where bare digits died on page one.")

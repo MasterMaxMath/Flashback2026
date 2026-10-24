@@ -135,7 +135,7 @@ struct PegIntroView: View {
             Text(code)
                 .font(.caption.monospaced()).foregroundColor(.black)
                 .frame(width: 38, height: 26)
-                .background(Color.green).cornerRadius(7)
+                .background(RainbowGradient()).cornerRadius(7)
             Text(word).font(.headline).foregroundColor(.white)
             Spacer()
         }

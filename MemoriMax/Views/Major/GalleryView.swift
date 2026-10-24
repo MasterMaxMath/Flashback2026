@@ -157,7 +157,7 @@ struct GalleryView: View {
             NavigationLink(destination: PegWalkView(list: list)) {
                 HStack(spacing: 14) {
                     Image(systemName: "list.number")
-                        .font(.body).foregroundColor(.green)
+                        .font(.body).rainbow()
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.08)).cornerRadius(12)
 
@@ -242,7 +242,7 @@ struct GalleryView: View {
             NavigationLink(destination: PalaceWalkView(palace: palace)) {
                 HStack(spacing: 14) {
                     Image(systemName: "figure.walk")
-                        .font(.body).foregroundColor(.green)
+                        .font(.body).rainbow()
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.08)).cornerRadius(12)
 
@@ -489,7 +489,7 @@ struct MnemonicCardView: View {
                     ForEach(card.scene, id: \.self) { b in
                         VStack(alignment: .leading, spacing: 1) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                                Text(b.digits).font(.caption.monospaced()).rainbow()
                                 Text(b.word).font(.headline).foregroundColor(.white)
                             }
                             Text(b.tie).font(.caption).foregroundColor(.white.opacity(0.65))

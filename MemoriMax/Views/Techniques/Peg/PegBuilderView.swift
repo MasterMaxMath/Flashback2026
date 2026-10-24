@@ -100,7 +100,7 @@ struct PegBuilderView: View {
                 Text(slot.number)
                     .font(.caption.monospaced()).foregroundColor(.black)
                     .frame(width: 40, height: 28)
-                    .background(Color.green).cornerRadius(8)
+                    .background(RainbowGradient()).cornerRadius(8)
 
                 Text(slot.pegWord)
                     .font(.headline).foregroundColor(.white)
@@ -141,7 +141,7 @@ struct PegBuilderView: View {
 
                     ForEach(slot.bindings, id: \.self) { b in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(b.digits).font(.caption.monospaced()).foregroundColor(.green)
+                            Text(b.digits).font(.caption.monospaced()).rainbow()
                             Text(b.word).font(.subheadline.bold()).foregroundColor(.white)
                         }
                     }

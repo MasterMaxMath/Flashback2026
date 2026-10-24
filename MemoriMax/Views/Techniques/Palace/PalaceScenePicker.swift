@@ -78,7 +78,7 @@ struct PalaceScenePicker: View {
                         .lineLimit(2).multilineTextAlignment(.leading)
                     if let first = card.scene.first {
                         HStack(spacing: 6) {
-                            Text(first.digits).font(.caption.monospaced()).foregroundColor(.green)
+                            Text(first.digits).font(.caption.monospaced()).rainbow()
                             Text(first.word).font(.caption.bold()).foregroundColor(.white.opacity(0.85))
                             if card.scene.count > 1 {
                                 Text("+\(card.scene.count - 1)")
@@ -89,7 +89,7 @@ struct PalaceScenePicker: View {
                 }
                 Spacer()
                 Image(systemName: "plus.circle")
-                    .font(.title3).foregroundColor(.green)
+                    .font(.title3).rainbow()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12).cardStyle()

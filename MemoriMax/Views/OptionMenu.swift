@@ -112,7 +112,7 @@ struct GradientNavLink<Destination: View>: View {
                     if let systemImage {
                         Image(systemName: systemImage)
                             .font(.title3)
-                            .foregroundColor(.green)
+                            .rainbow()
                             .frame(width: 44, height: 44)
                             .background(Color.white.opacity(0.08))
                             .cornerRadius(12)
@@ -141,7 +141,7 @@ struct GradientNavLink<Destination: View>: View {
                             .foregroundColor(.black)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 5)
-                            .background(Color.green)
+                            .background(RainbowGradient())
                             .clipShape(Capsule())
                     }
 

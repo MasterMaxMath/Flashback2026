@@ -79,7 +79,7 @@ struct MajorGeneratorView: View {
                         .font(.title3.bold()).foregroundColor(.white)
                         .multilineTextAlignment(.center)
                     Text(zip(result.chunkCodes, result.chunkedStory).map { "\($0) → \($1)" }.joined(separator: "   "))
-                        .font(.caption.monospaced()).foregroundColor(.green)
+                        .font(.caption.monospaced()).rainbow()
                         .multilineTextAlignment(.center)
                     Text("Say it as one scene: “\(result.chunkedStory.joined(separator: " "))”.")
                         .font(.caption).foregroundColor(.white.opacity(0.7)).italic()
@@ -105,7 +105,7 @@ struct MajorGeneratorView: View {
                                     Text("“\(combo)”").font(.headline).foregroundColor(.white)
                                     Spacer()
                                     Text(codeLabel(for: combo))
-                                        .font(.caption2.monospaced()).foregroundColor(.green)
+                                        .font(.caption2.monospaced()).rainbow()
                                 }
                                 .padding(.vertical, 2)
                             }
@@ -138,7 +138,7 @@ struct MajorGeneratorView: View {
                     Text(w).font(.headline.monospaced()).foregroundColor(.black)
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(Color.white).cornerRadius(20)
-                    Text(MajorSystem.digits(for: w)).font(.caption.monospaced()).foregroundColor(.green)
+                    Text(MajorSystem.digits(for: w)).font(.caption.monospaced()).rainbow()
                 }
             }
         }

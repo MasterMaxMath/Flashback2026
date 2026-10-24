@@ -144,12 +144,11 @@ struct ReviewView: View {
 
     private func reviewCard(_ item: ReviewItem) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            ProgressView(value: Double(index), total: Double(max(queue.count, 1)))
-                .tint(.green)
+            RainbowProgressBar(value: Double(index) / Double(max(queue.count, 1)))
 
             HStack(spacing: 8) {
                 Label(item.source.title, systemImage: item.source.icon)
-                    .font(.caption.monospaced()).foregroundColor(.green)
+                    .font(.caption.monospaced()).rainbow()
                 Spacer()
                 Text("\(index + 1) OF \(queue.count)")
                     .font(.caption.monospaced()).foregroundColor(.white.opacity(0.5))
@@ -188,7 +187,7 @@ struct ReviewView: View {
 
                 HStack(spacing: 10) {
                     ratingButton("Again", color: .red.opacity(0.85)) { rate(.again) }
-                    ratingButton("Good", color: .green.opacity(0.85)) { rate(.good) }
+                    ratingButton("Good", color: .green.opacity(0.85), rainbow: true) { rate(.good) }
                     ratingButton("Easy", color: .blue.opacity(0.85)) { rate(.easy) }
                 }
             } else {
@@ -207,12 +206,15 @@ struct ReviewView: View {
         .padding().cardStyle()
     }
 
-    private func ratingButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+    private func ratingButton(_ title: String, color: Color, rainbow: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.bold()).foregroundColor(.black)
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
-                .background(color).cornerRadius(12)
+                .background {
+                    if rainbow { RainbowGradient() } else { color }
+                }
+                .cornerRadius(12)
         }
         .buttonStyle(.plain)
     }

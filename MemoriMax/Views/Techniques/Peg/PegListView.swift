@@ -95,7 +95,7 @@ struct PegListView: View {
         NavigationLink(destination: PegBuilderView(list: list)) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "list.number")
-                    .font(.title2).foregroundColor(.green)
+                    .font(.title2).rainbow()
                     .frame(width: 44, height: 44)
                     .background(Color.white.opacity(0.08)).cornerRadius(12)
 

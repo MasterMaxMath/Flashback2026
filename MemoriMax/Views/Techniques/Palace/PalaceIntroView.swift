@@ -153,7 +153,7 @@ struct PalaceIntroView: View {
     private func stopRow(location: String, image: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "mappin.circle.fill")
-                .font(.title3).foregroundColor(.green)
+                .font(.title3).rainbow()
             VStack(alignment: .leading, spacing: 3) {
                 Text(location).font(.headline).foregroundColor(.white)
                 Text(image).font(.subheadline).foregroundColor(.white.opacity(0.8))

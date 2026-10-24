@@ -72,8 +72,7 @@ struct QuizPlayView: View {
                     Image(uiImage: art).resizable().scaledToFill()
                         .frame(width: 110, height: 110).clipped()
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10)
-                            .stroke(picked != nil ? Color.green.opacity(0.6) : Color.white.opacity(0.15)))
+                        .rainbowRim(cornerRadius: 10, active: picked != nil, inactiveColor: Color.white.opacity(0.15))
                     groundingText(q)
                 }
             } else {
@@ -121,35 +120,41 @@ struct QuizPlayView: View {
                     .foregroundColor(.white)
                 Spacer()
                 if picked != nil && isCorrect {
-                    Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
+                    Image(systemName: "checkmark.circle.fill").rainbow()
                 } else if picked == i && !isCorrect {
                     Image(systemName: "xmark.circle.fill").foregroundColor(.red)
                 }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(feedbackBackground(isCorrect: isCorrect, mine: picked == i))
+            .background { feedbackBackground(isCorrect: isCorrect, mine: picked == i) }
             .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12).stroke(feedbackStroke(isCorrect: isCorrect, mine: picked == i))
-            )
+            .rainbowRim(cornerRadius: 12,
+                        active: picked != nil && isCorrect,
+                        inactiveColor: feedbackStroke(isCorrect: isCorrect, mine: picked == i))
         }
         .buttonStyle(.plain)
         .disabled(picked != nil)
         .opacity(picked != nil && !isCorrect && !(picked == i) ? 0.55 : 1)
     }
 
-    /// From the moment an answer is picked: green marks the right choice,
+    /// From the moment an answer is picked: rainbow marks the right choice,
     /// red marks a wrong pick, everything else stays quiet.
-    private func feedbackBackground(isCorrect: Bool, mine: Bool) -> Color {
-        if picked == nil { return Color.white.opacity(0.06) }
-        if isCorrect { return Color.green.opacity(0.22) }
-        return mine ? Color.red.opacity(0.2) : Color.white.opacity(0.06)
+    @ViewBuilder
+    private func feedbackBackground(isCorrect: Bool, mine: Bool) -> some View {
+        if picked == nil {
+            Color.white.opacity(0.06)
+        } else if isCorrect {
+            RainbowGradient().opacity(0.3)
+        } else if mine {
+            Color.red.opacity(0.2)
+        } else {
+            Color.white.opacity(0.06)
+        }
     }
 
     private func feedbackStroke(isCorrect: Bool, mine: Bool) -> Color {
-        if picked == nil { return Color.white.opacity(0.25) }
-        if isCorrect { return Color.green.opacity(0.8) }
+        if picked == nil || isCorrect { return Color.white.opacity(0.25) }
         return mine ? Color.red.opacity(0.8) : Color.white.opacity(0.25)
     }
 
@@ -228,20 +233,20 @@ struct QuizPlayView: View {
                     // Pure picture round: neither number nor word is shown —
                     // the scene itself must be decoded into its mnemonic.
                     Image(systemName: "photo")
-                        .font(.caption).foregroundColor(.green)
+                        .font(.caption).rainbow()
                 } else if q.kind == .digitsToWord || q.kind == .factToWord {
                     // The number is given; the mnemonic stays hidden.
-                    Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
+                    Text(q.digits).font(.caption.monospaced()).rainbow()
                 } else if q.kind == .wordToDigits || q.kind == .factToDigits {
                     // The mnemonic is given; the number stays hidden.
                     Text(q.word).font(.headline).foregroundColor(.white)
                 } else {
                     // Picture question whose art went missing (card edited
                     // away?) — degrade to a number question so it stays fair.
-                    Text(q.digits).font(.caption.monospaced()).foregroundColor(.green)
+                    Text(q.digits).font(.caption.monospaced()).rainbow()
                 }
                 Text("→").font(.caption).foregroundColor(.white.opacity(0.5))
-                Text("?").font(.caption.monospaced()).foregroundColor(.green)
+                Text("?").font(.caption.monospaced()).rainbow()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -76,7 +76,7 @@ struct WalkPickerView: View {
     private func row(_ title: String, subtitle: String, icon: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.body).foregroundColor(.green)
+                .font(.body).rainbow()
                 .frame(width: 44, height: 44)
                 .background(Color.white.opacity(0.08)).cornerRadius(12)
             VStack(alignment: .leading, spacing: 3) {
