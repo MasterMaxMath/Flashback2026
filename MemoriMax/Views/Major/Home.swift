@@ -21,7 +21,7 @@ struct Home: View {
                         .scaledToFit()
                         .frame(width: 280, height: 280)
 
-                    Text("“Make your brain wrinklyer, one game at a time.”")
+                    Text("“Make your brain wrinklier, one game at a time.”")
                         .italic()
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)

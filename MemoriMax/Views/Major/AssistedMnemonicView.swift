@@ -73,10 +73,9 @@ struct AssistedMnemonicView: View {
     }
 
     private var digits: String {
-        // First run of digits in the fact, e.g. "…212…" → "212".
-        let pattern = "\\d+"
-        guard let range = factText.range(of: pattern, options: .regularExpression) else { return "" }
-        return String(factText[range])
+        // Every digit in the fact, concatenated in order. "285.15" → "28515";
+        // ranges/separators between numbers are dropped. Example: "…212…" → "212".
+        MajorSystem.sanitizedDigits(factText)
     }
 
     var body: some View {
@@ -515,7 +514,8 @@ struct AssistedMnemonicView: View {
         let asset = sceneImageData == nil ? "no art" : "\(sceneImageData!.count) bytes art"
         let binding = MnemonicBinding(digits: digits, word: c.word, tie: sceneStory ?? c.tie)
         modelContext.insert(GalleryCard(
-            fact: factText, bindings: [binding], tag: tag, imageData: sceneImageData
+            fact: factText, bindings: [binding], tag: tag, imageData: sceneImageData,
+            technique: MemoryTechnique.major.rawValue
         ))
         try? modelContext.save()
         dlog("Saved to gallery → group '\(tag)' — '\(c.word)' for '\(factText.prefix(50))' (\(asset)).")

@@ -18,13 +18,13 @@ struct MnemonicBinding: Codable, Hashable {
 }
 
 /// The app always works with the latest schema version.
-typealias GalleryCard = GallerySchemaV2.GalleryCard
+typealias GalleryCard = GallerySchemaV5.GalleryCard
 
 /// Preview-only in-memory store containing every app model, so previews that
 /// can reach the gallery (and the quizzes) never mix implicit stores.
 extension View {
     func demoModelContainer() -> some View {
-        modelContainer(for: [GalleryCard.self, SavedQuiz.self], inMemory: true)
+        modelContainer(for: [GalleryCard.self, SavedQuiz.self, MemoryPalace.self], inMemory: true)
     }
 }
 
@@ -91,20 +91,78 @@ enum GallerySchemaV2: VersionedSchema {
 
 enum GallerySchemaV3: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
-    static var models: [any PersistentModel.Type] { [GalleryCard.self, SavedQuiz.self] }
+    static var models: [any PersistentModel.Type] { [GallerySchemaV2.GalleryCard.self, SavedQuiz.self] }
+}
+
+// MARK: - V4: adds memory palaces (GalleryCard and SavedQuiz unchanged)
+
+enum GallerySchemaV4: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(4, 0, 0) }
+    static var models: [any PersistentModel.Type] {
+        [GallerySchemaV2.GalleryCard.self, SavedQuiz.self, MemoryPalace.self]
+    }
+}
+
+// MARK: - V5: adds the technique that created each card
+//
+// Every pre-V5 card came from the Major System flow, so "major" is both the
+// default and the migration backfill.
+
+enum GallerySchemaV5: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(5, 0, 0) }
+    static var models: [any PersistentModel.Type] {
+        [GalleryCard.self, SavedQuiz.self, MemoryPalace.self]
+    }
+
+    @Model
+    final class GalleryCard {
+        var fact: String
+        /// Optional so the store can migrate in place (a mandatory attribute
+        /// has no value for pre-existing rows). Read via `scene`.
+        var bindings: [MnemonicBinding]?
+        var tag: String = "default"
+        var createdAt: Date
+        @Attribute(.externalStorage) var imageData: Data?
+        /// `MemoryTechnique.rawValue` — which technique built this mnemonic.
+        var technique: String = MemoryTechnique.major.rawValue
+
+        init(fact: String, bindings: [MnemonicBinding], tag: String = "default",
+             imageData: Data? = nil,
+             technique: String = MemoryTechnique.major.rawValue) {
+            self.fact = fact
+            self.bindings = bindings
+            self.tag = tag
+            self.createdAt = Date()
+            self.imageData = imageData
+            self.technique = technique
+        }
+
+        /// The scene's number↔word bindings, never nil.
+        var scene: [MnemonicBinding] { bindings ?? [] }
+
+        /// Typed accessor with a Major System fallback for legacy rows.
+        var techniqueKind: MemoryTechnique { MemoryTechnique.from(technique) }
+    }
 }
 
 // MARK: - Migration
 //
-// V1 → V2 is custom (single-number cards → scenes). V2 → V3 is additive
-// (new QuizCard entity), handled by a lightweight migration.
+// V1 → V2 is custom (single-number cards → scenes). V2 → V3, V3 → V4 and
+// V4 → V5 are additive (new entities / a defaulted attribute), handled by
+// lightweight migrations.
 
 enum GalleryMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [GallerySchemaV1.self, GallerySchemaV2.self, GallerySchemaV3.self]
+        [GallerySchemaV1.self, GallerySchemaV2.self, GallerySchemaV3.self,
+         GallerySchemaV4.self, GallerySchemaV5.self]
     }
     static var stages: [MigrationStage] {
-        [v1ToV2, .lightweight(fromVersion: GallerySchemaV2.self, toVersion: GallerySchemaV3.self)]
+        [
+            v1ToV2,
+            .lightweight(fromVersion: GallerySchemaV2.self, toVersion: GallerySchemaV3.self),
+            .lightweight(fromVersion: GallerySchemaV3.self, toVersion: GallerySchemaV4.self),
+            .lightweight(fromVersion: GallerySchemaV4.self, toVersion: GallerySchemaV5.self)
+        ]
     }
 
     /// Carries legacy bindings between the two migration phases.

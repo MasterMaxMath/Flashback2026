@@ -64,10 +64,11 @@ struct OptionMenu: View {
                         print("Memory Cards selected")
                     }
 
-                    // Major System -> guided slideshow. Uses a NavigationLink
-                    // styled identically to GradientButton (no nested Button,
-                    // so the whole card is tappable and VoiceOver-safe).
-                    GradientNavLink(title: "Major System", destination: MajorIntroView())
+                    // Techniques -> router for memory techniques (Major System,
+                    // Peg System, Memory Palace, …). Uses a NavigationLink styled
+                    // identically to GradientButton (no nested Button, so the
+                    // whole card is tappable and VoiceOver-safe).
+                    GradientNavLink(title: "Techniques", destination: TechniquesView())
 
                     GradientNavLink(title: "Gallery", destination: GalleryScreen())
 

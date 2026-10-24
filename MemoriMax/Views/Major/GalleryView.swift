@@ -4,12 +4,14 @@ import UIKit
 
 // MARK: - Saved mnemonics gallery (persistent, shared)
 //
-// The gallery is organised by tag group. The landing screen lists one row per
-// group showing the group name, how many mnemonics it holds, and the latest
-// image added to it; tapping a group opens its cards. Cards live in SwiftData;
-// art bytes use external storage. `GalleryScreen` adds the app chrome (dark
-// background, scrolling, title) for menu entry; the assisted flow embeds
-// `GalleryView` directly (already inside the flow's ScrollView).
+// The gallery is organised by memory technique (Major System, Peg System,
+// Memory Palace), and within each technique by tag group. The landing screen
+// lists one row per group showing the group name, how many mnemonics it holds,
+// and the latest image added to it; tapping a group opens its cards. Palaces
+// are listed as their own rows. Cards live in SwiftData; art bytes use external
+// storage. `GalleryScreen` adds the app chrome (dark background, scrolling,
+// title) for menu entry; the assisted flow embeds `GalleryView` directly
+// (already inside the flow's ScrollView).
 
 // MARK: Group model
 
@@ -56,34 +58,103 @@ struct GalleryScreen: View {
 struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GalleryCard.createdAt, order: .reverse) private var cards: [GalleryCard]
+    @Query(sort: \MemoryPalace.createdAt, order: .reverse) private var palaces: [MemoryPalace]
 
-    private var groups: [GalleryGroup] { cards.groupedByTag() }
+    /// Cards for one technique, grouped by tag exactly as before — but only
+    /// within that technique, so a "History" group can exist in two techniques.
+    private func groups(for technique: MemoryTechnique) -> [GalleryGroup] {
+        cards.filter { $0.techniqueKind == technique }.groupedByTag()
+    }
+
+    private func count(for technique: MemoryTechnique) -> Int {
+        cards.reduce(0) { $0 + ($1.techniqueKind == technique ? 1 : 0) }
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             Text("GALLERY")
                 .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if groups.isEmpty {
-                Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
-                    .font(.subheadline).foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center).padding().cardStyle()
-                Button("Restore demo cards") {
-                    Self.seedIfNeeded(context: modelContext)
-                }
-                .font(.subheadline.bold()).foregroundColor(.white.opacity(0.7))
-            } else {
-                ForEach(groups) { group in
-                    NavigationLink(destination: GalleryGroupView(tag: group.tag)) {
-                        groupRow(group)
+            if cards.isEmpty && palaces.isEmpty {
+                VStack(spacing: 12) {
+                    Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
+                        .font(.subheadline).foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                    Button("Restore demo cards") {
+                        Self.seedIfNeeded(context: modelContext)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(group.tag), \(group.count) mnemonic\(group.count == 1 ? "" : "s")")
+                    .font(.subheadline.bold()).foregroundColor(.white.opacity(0.7))
                 }
+                .frame(maxWidth: .infinity)
+                .padding().cardStyle()
+            } else {
+                techniqueSection(.major)
+                techniqueSection(.peg)
+                palacesSection
             }
         }
         .onAppear { Self.seedIfNeeded(context: modelContext) }
+    }
+
+    // MARK: - Technique sections
+
+    private func techniqueSection(_ technique: MemoryTechnique) -> some View {
+        let grouped = groups(for: technique)
+        let total = count(for: technique)
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(technique, count: total)
+            if grouped.isEmpty {
+                emptyRow("No \(technique.title) mnemonics yet.")
+            } else {
+                ForEach(grouped) { group in
+                    NavigationLink(destination: GalleryGroupView(tag: group.tag, technique: technique)) {
+                        groupRow(group)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(group.tag), \(group.count) \(technique.title) mnemonic\(group.count == 1 ? "" : "s")")
+                }
+            }
+        }
+    }
+
+    private var palacesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(.palace, count: palaces.count)
+            if palaces.isEmpty {
+                emptyRow("No Memory Palace routes yet.")
+            } else {
+                ForEach(palaces) { palace in
+                    NavigationLink(destination: PalaceBuilderView(palace: palace)) {
+                        palaceRow(palace)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(palace.name), \(palace.stations.count) stops")
+                }
+            }
+        }
+    }
+
+    private func sectionHeader(_ technique: MemoryTechnique, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: technique.icon)
+                .font(.caption).foregroundColor(.white.opacity(0.6))
+            Text(technique.title.uppercased())
+                .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
+            Spacer()
+            Text("\(count)").font(.caption.monospaced()).foregroundColor(.white.opacity(0.45))
+        }
+        .padding(.top, 4)
+    }
+
+    private func emptyRow(_ text: String) -> some View {
+        Text(text)
+            .font(.caption).foregroundColor(.white.opacity(0.5))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.white.opacity(0.04))
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.12)))
     }
 
     private func groupRow(_ group: GalleryGroup) -> some View {
@@ -93,6 +164,27 @@ struct GalleryView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(group.tag).font(.headline).foregroundColor(.white)
                 Text("\(group.count) mnemonic\(group.count == 1 ? "" : "s")")
+                    .font(.caption).foregroundColor(.white.opacity(0.65))
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.subheadline.bold()).foregroundColor(.white.opacity(0.5))
+        }
+        .padding(12).cardStyle()
+    }
+
+    private func palaceRow(_ palace: MemoryPalace) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: "figure.walk")
+                .font(.body).foregroundColor(.green)
+                .frame(width: 44, height: 44)
+                .background(Color.white.opacity(0.08)).cornerRadius(12)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(palace.name).font(.headline).foregroundColor(.white)
+                Text(palace.stations.isEmpty
+                     ? "No stops yet"
+                     : "\(palace.stations.count) stop\(palace.stations.count == 1 ? "" : "s")")
                     .font(.caption).foregroundColor(.white.opacity(0.65))
             }
             Spacer()
@@ -140,7 +232,8 @@ struct GalleryView: View {
         let art = demoArtData
         var added = 0
         for d in demos where !existingFacts.contains(d.fact) {
-            context.insert(GalleryCard(fact: d.fact, bindings: d.bindings, tag: "default", imageData: art))
+            context.insert(GalleryCard(fact: d.fact, bindings: d.bindings, tag: "default", imageData: art,
+                                       technique: MemoryTechnique.major.rawValue))
             added += 1
         }
         // Backfill a demo card saved before the bundled art existed, so it
@@ -160,6 +253,7 @@ struct GalleryView: View {
 
 struct GalleryGroupView: View {
     let tag: String
+    let technique: MemoryTechnique
     @Environment(\.modelContext) private var modelContext
     @Query private var cards: [GalleryCard]
     /// Unfiltered, so the move sheet can offer every group name in use.
@@ -169,9 +263,21 @@ struct GalleryGroupView: View {
     @State private var renameText = ""
     @State private var moveTarget: GalleryCard?
 
-    init(tag: String) {
+    init(tag: String, technique: MemoryTechnique) {
         self.tag = tag
-        let predicate = #Predicate<GalleryCard> { $0.tag == tag }
+        self.technique = technique
+        let raw = technique.rawValue
+        let predicate: Predicate<GalleryCard>
+        if technique == .major {
+            // Legacy rows may predate the technique field (empty reads as major).
+            predicate = #Predicate<GalleryCard> { card in
+                card.tag == tag && (card.technique == raw || card.technique == "")
+            }
+        } else {
+            predicate = #Predicate<GalleryCard> { card in
+                card.tag == tag && card.technique == raw
+            }
+        }
         _cards = Query(
             filter: predicate,
             sort: [SortDescriptor(\GalleryCard.createdAt, order: .reverse)]
