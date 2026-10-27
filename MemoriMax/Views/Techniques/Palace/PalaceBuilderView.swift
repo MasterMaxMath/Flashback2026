@@ -32,7 +32,7 @@ struct PalaceBuilderView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("No stops yet.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("Walk your route in your head and add one stop at a time — front door, hallway, kitchen… Five to fifteen works best.")
+                            Text("Walk your route in your head and add one stop at a time: front door, hallway, kitchen… Five to fifteen works best.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -80,7 +80,7 @@ struct PalaceBuilderView: View {
             }
             Button("Cancel", role: .cancel) { renameIndex = nil }
         } message: { _ in
-            Text("Name this place on your route — e.g. “front door”.")
+            Text("Name this place on your route, e.g. “front door”.")
         }
     }
 

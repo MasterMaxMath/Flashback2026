@@ -60,11 +60,11 @@ struct ToWordsTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let lookup = arguments.digits.filter(\.isWholeNumber)
-        guard !lookup.isEmpty else { return "Invalid digits — pass digits like 212." }
+        guard !lookup.isEmpty else { return "Invalid digits. Pass digits like 212." }
         let rows = MajorTools.to_words(lookup, limit: 15)
         AIDebugLog.write("Apple called to_words('\(lookup)') → \(rows.count) row(s): \(rows.prefix(8).map(\.word).joined(separator: ", ")).")
         guard !rows.isEmpty else {
-            return "No exact single-word matches for \(lookup) — try shorter chunks of its digits."
+            return "No exact single-word matches for \(lookup). Try shorter chunks of its digits."
         }
         return rows.map(\.word).joined(separator: ", ")
     }
@@ -155,7 +155,7 @@ enum MajorLLMService {
         none extra. Example: 404 → "grandson ray dive" would be wrong \
         (codes 42-4-1); "razor" alone is right when it spans everything \
         (R-Z-R). The phrase should evoke the fact's meaning. Reply with \
-        phrases only.
+        phrases only. Never use em dashes; use commas or periods instead.
         """
         let session = LanguageModelSession(tools: [ToWordsTool()], instructions: instructions)
         let prompt = """
@@ -184,7 +184,8 @@ enum MajorLLMService {
         Rules: a single vivid sentence, 15-30 words, present tense, \
         describing a concrete physical scene where ALL of the given objects \
         clearly interact to act out the given meaning. Name every object \
-        directly. No dialogue or abstract ideas.
+        directly. No dialogue or abstract ideas. Never use em dashes; use \
+        commas or periods instead.
         """
         let session = LanguageModelSession(instructions: instructions)
         let prompt = """

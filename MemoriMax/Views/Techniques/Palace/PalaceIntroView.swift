@@ -55,12 +55,12 @@ struct PalaceIntroView: View {
             Text("Some things\nhave no number.")
                 .palaceTitle()
 
-            Text("A shopping list, the parts of a speech, the planets in order. Bare digits fade — and so does a bare list.")
+            Text("A shopping list, the parts of a speech, the planets in order. Bare digits fade, and so does a bare list.")
                 .palaceBody()
 
-            PlaceholderImageView(
-                label: "ART: items slipping out of a torn shopping bag",
-                icon: "list.bullet"
+            ArtworkImageView(
+                name: "torn-grocery-bag",
+                accessibility: "Items slipping out of a torn shopping bag"
             )
         }
     }
@@ -72,9 +72,9 @@ struct PalaceIntroView: View {
             Text("You already own\na perfect map.")
                 .palaceTitle()
 
-            PlaceholderImageView(
-                label: "ART: a friendly floor plan — door, hall, kitchen",
-                icon: "house"
+            ArtworkImageView(
+                name: "floor-plan",
+                accessibility: "A friendly floor plan: door, hall, kitchen"
             )
 
             Text("Your home. Your walk to school. Any route you know so well you could take it blindfolded. Memory keeps places for free.")
@@ -111,7 +111,7 @@ struct PalaceIntroView: View {
             Text("Walk the same route from the start. The front door hands you the lemon, the lemon hands you \"lemons\". The places keep the order for you.")
                 .palaceBody()
 
-            Text("That is the whole trick — and it pairs perfectly with words that hold numbers.")
+            Text("That is the whole trick, and it pairs perfectly with words that hold numbers.")
                 .palaceFootnote()
         }
     }

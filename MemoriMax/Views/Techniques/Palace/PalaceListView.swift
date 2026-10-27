@@ -29,7 +29,7 @@ struct PalaceListView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("No palaces yet.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("A palace is a route you already know — home, your walk to school. Build one and leave a scene at each stop.")
+                            Text("A palace is a route you already know: home, your walk to school. Build one and leave a scene at each stop.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,7 +122,7 @@ struct PalaceListView: View {
     }
 
     private func stationSummary(_ palace: MemoryPalace) -> String {
-        if palace.stations.isEmpty { return "No stops yet — tap to build the route" }
+        if palace.stations.isEmpty { return "No stops yet. Tap to build the route" }
         return "\(palace.stations.count) stop\(palace.stations.count == 1 ? "" : "s") · ready to walk"
     }
 }
@@ -132,7 +132,7 @@ struct PalaceListView: View {
 struct PalaceNameSheet: View {
     let title: String
     let confirm: String
-    var hint: String = "Use a route you already know by heart — the more familiar, the better."
+    var hint: String = "Use a route you already know by heart. The more familiar, the better."
     let onConfirm: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss

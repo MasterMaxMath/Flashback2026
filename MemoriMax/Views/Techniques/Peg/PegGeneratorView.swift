@@ -9,11 +9,11 @@ import SwiftData
 
 struct PegGeneratorView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveTags: SaveTagPresenter
     @Query(sort: \GalleryCard.createdAt, order: .reverse) private var gallery: [GalleryCard]
 
     @State private var input = "431050"
     @State private var fact = ""
-    @State private var showTagSheet = false
     @State private var savedTag: String?
 
     private var result: MajorSystem.SearchResult { MajorSystem.search(input) }
@@ -35,7 +35,7 @@ struct PegGeneratorView: View {
                         .font(.caption.monospaced()).foregroundColor(.white.opacity(0.7))
                         .padding(.top, 8)
 
-                    Text("Hang the digits on fixed peg words — two digits per stop.")
+                    Text("Hang the digits on fixed peg words, two digits per stop.")
                         .font(.subheadline).foregroundColor(.white.opacity(0.8))
 
                     numberField
@@ -67,14 +67,6 @@ struct PegGeneratorView: View {
         .navigationTitle("Peg System")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .sheet(isPresented: $showTagSheet) {
-            SaveTagSheet(
-                word: result.chunkedStory.joined(separator: " "),
-                fact: saveFact,
-                existingTags: Array(Set(gallery.map(\.tag))),
-                onSave: save
-            )
-        }
     }
 
     // MARK: - Pieces
@@ -138,7 +130,12 @@ struct PegGeneratorView: View {
 
     private var saveButton: some View {
         Button {
-            showTagSheet = true
+            saveTags.present(
+                word: result.chunkedStory.joined(separator: " "),
+                fact: saveFact,
+                existingTags: Array(Set(gallery.map(\.tag))),
+                onSave: save
+            )
         } label: {
             Label("Save to gallery", systemImage: "square.and.arrow.down")
                 .font(.headline).foregroundColor(.black)
@@ -173,4 +170,5 @@ struct PegGeneratorView: View {
 #Preview {
     NavigationStack { PegGeneratorView() }
         .demoModelContainer()
+        .environmentObject(SaveTagPresenter())
 }

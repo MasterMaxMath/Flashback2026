@@ -68,7 +68,7 @@ struct PegListView: View {
             PalaceNameSheet(
                 title: "NEW PEG LIST",
                 confirm: "Create",
-                hint: "Name the list after what it holds — a shopping list, speech points, a deck of digits."
+                hint: "Name the list after what it holds: a shopping list, speech points, a deck of digits."
             ) { name in
                 let list = PegList(name: name)
                 modelContext.insert(list)
@@ -132,7 +132,7 @@ struct PegListView: View {
     }
 
     private func summary(_ list: PegList) -> String {
-        if list.slots.isEmpty { return "No pegs yet — tap to build the list" }
+        if list.slots.isEmpty { return "No pegs yet. Tap to build the list" }
         return "\(list.slots.count) peg\(list.slots.count == 1 ? "" : "s") · ready to walk"
     }
 }

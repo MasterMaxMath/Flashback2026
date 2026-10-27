@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct MemoriMaxApp: App {
     private let container: ModelContainer
+    @StateObject private var saveTags = SaveTagPresenter()
 
     init() {
         let schema = Schema(versionedSchema: GallerySchemaV7.self)
@@ -28,6 +29,17 @@ struct MemoriMaxApp: App {
         WindowGroup {
             NavigationStack {
                 Home()
+            }
+            .environmentObject(saveTags)
+            .sheet(item: $saveTags.request) { request in
+                SaveTagSheet(
+                    word: request.word,
+                    fact: request.fact,
+                    existingTags: request.existingTags,
+                    onSave: request.onSave,
+                    header: request.header,
+                    confirmLabel: request.confirmLabel
+                )
             }
         }
         .modelContainer(container)

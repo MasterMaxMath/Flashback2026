@@ -37,6 +37,7 @@ struct AssistedMnemonicView: View {
     @State private var selected: MockCandidate? = nil
     @State private var artVariant = 1
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveTags: SaveTagPresenter
     @Query(sort: \GalleryCard.createdAt, order: .reverse) private var gallery: [GalleryCard]
     @State private var aiLoading = false
     @State private var aiError: String? = nil
@@ -47,7 +48,6 @@ struct AssistedMnemonicView: View {
     @State private var imageAttempted = false
     @State private var aiAttemptedDigits: String? = nil
     @State private var candidateSource = "none yet"
-    @State private var showTagSheet = false
 
     /// True when any image backend is configured (Cloudflare preferred).
     private static var sceneImageAvailable: Bool {
@@ -87,14 +87,6 @@ struct AssistedMnemonicView: View {
             case .scene: sceneStep
             case .gallery: galleryStep
             }
-        }
-        .sheet(isPresented: $showTagSheet) {
-            SaveTagSheet(
-                word: selected?.word ?? "",
-                fact: factText,
-                existingTags: Array(Set(gallery.map(\.tag))),
-                onSave: saveSelected
-            )
         }
     }
 
@@ -155,7 +147,7 @@ struct AssistedMnemonicView: View {
 
             if candidates.isEmpty {
                 VStack(spacing: 8) {
-                    Text("No phrases for “\(digits)” yet — not from Apple Intelligence, not from the built-in search.")
+                    Text("No phrases for “\(digits)” yet. Not from Apple Intelligence, not from the built-in search.")
                         .font(.subheadline).foregroundColor(.white.opacity(0.75))
                         .multilineTextAlignment(.center)
                     Text("The demo fact (212) has Wonton, Undine and Antoine ready.")
@@ -257,7 +249,7 @@ struct AssistedMnemonicView: View {
                 .background(Color.white).cornerRadius(12)
             }
         } else {
-            Text("No AI available here (Apple Intelligence off, no Gemini key) — showing built-in words.")
+            Text("No AI available here (Apple Intelligence off, no Gemini key). Showing built-in words.")
                 .font(.caption).foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
         }
@@ -355,7 +347,7 @@ struct AssistedMnemonicView: View {
         if valid.isEmpty {
             candidates = algorithmicCandidates(digits: target)
             let tried = provider == "none" ? "no AI provider ran" : "\(provider) gave nothing usable"
-            aiError = "\(tried.prefix(1).uppercased() + tried.dropFirst()) — fell back to built-in search (\(candidates.count) word(s))."
+            aiError = "\(tried.prefix(1).uppercased() + tried.dropFirst()). Fell back to built-in search (\(candidates.count) word(s))."
             dlog("0 valid from AI — algorithmic fallback engaged (\(candidateSource), \(candidates.count)).")
         } else {
             candidates = valid
@@ -393,7 +385,12 @@ struct AssistedMnemonicView: View {
                         .background(Color.white.opacity(0.12)).cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3)))
                     Button("Good") {
-                        showTagSheet = true
+                        saveTags.present(
+                            word: selected?.word ?? "",
+                            fact: factText,
+                            existingTags: Array(Set(gallery.map(\.tag))),
+                            onSave: saveSelected
+                        )
                     }
                     .font(.headline).foregroundColor(.black)
                     .frame(maxWidth: .infinity).padding()
@@ -443,7 +440,7 @@ struct AssistedMnemonicView: View {
                 .font(.subheadline.bold()).foregroundColor(.black)
                 .frame(maxWidth: .infinity).padding(12)
                 .background(Color.white).cornerRadius(12)
-                Text("One AI picture per scene — needs network + quota.")
+                Text("One AI picture per scene. Needs network + quota.")
                     .font(.caption2).foregroundColor(.white.opacity(0.5))
             }
         } else {
@@ -499,7 +496,7 @@ struct AssistedMnemonicView: View {
             }
             dlog("Scene image ready (\(provider)) — \(sceneImageData?.count ?? 0) bytes.")
         } catch {
-            imageError = "Illustration failed (\(error.localizedDescription)) — you can still tap Good."
+            imageError = "Illustration failed (\(error.localizedDescription)). You can still tap Good."
             dlog("Scene image failed (\(provider)): \(error.localizedDescription).")
         }
     }
@@ -589,7 +586,7 @@ struct AssistedMnemonicView: View {
                 return phrases.map {
                     MockCandidate(
                         word: $0.words.joined(separator: " "),
-                        tie: "Encodes all of \(target) in \($0.words.count) words — verified on-device"
+                        tie: "Encodes all of \(target) in \($0.words.count) words, verified on-device"
                     )
                 }
             }
@@ -601,7 +598,7 @@ struct AssistedMnemonicView: View {
             candidateSource = "bundled database (\(exact.count) exact)"
             dlog("Algorithmic fallback: \(exact.count) exact match(es): \(exact.map(\.word).joined(separator: ", ")). DB available: \(dbAvailable).")
             return exact.map {
-                MockCandidate(word: $0.word, tie: "Covers \(target) exactly — verified on-device")
+                MockCandidate(word: $0.word, tie: "Covers \(target) exactly, verified on-device")
             }
         }
 
@@ -612,11 +609,12 @@ struct AssistedMnemonicView: View {
         candidateSource = "peg story (chunked, combined)"
         dlog("Algorithmic fallback: no DB match — chunked pegs combined into one phrase: '\(pegPhrase)' (chunks \(result.chunkCodes.joined(separator: "-"))).")
         return [MockCandidate(word: pegPhrase.isEmpty ? target : pegPhrase,
-                              tie: "Covers \(target) chunk by chunk — verified on-device")]
+                              tie: "Covers \(target) chunk by chunk, verified on-device")]
     }
 }
 
 #Preview {
     NavigationStack { MajorGeneratorView() }
         .demoModelContainer()
+        .environmentObject(SaveTagPresenter())
 }

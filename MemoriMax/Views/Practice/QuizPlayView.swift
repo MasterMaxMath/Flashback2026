@@ -199,10 +199,10 @@ struct QuizPlayView: View {
     private var scoreMessage: String {
         let ratio = Double(correctCount) / Double(max(questions.count, 1))
         switch ratio {
-        case 1.0: return "Perfect — the scene sticks."
+        case 1.0: return "Perfect. The scene sticks."
         case 0.8...: return "Strong recall. Almost locked in."
-        case 0.5...: return "Halfway there — replay the scenes in the gallery."
-        default: return "Shaky — revisit these scenes in the gallery."
+        case 0.5...: return "Halfway there. Replay the scenes in the gallery."
+        default: return "Shaky. Revisit these scenes in the gallery."
         }
     }
 
@@ -212,7 +212,7 @@ struct QuizPlayView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("No questions yet.")
                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-            Text("Save mnemonics to the gallery first — quizzes are built from them.")
+            Text("Save mnemonics to the gallery first. Quizzes are built from them.")
                 .font(.caption).foregroundColor(.white.opacity(0.65))
         }
         .frame(maxWidth: .infinity, alignment: .leading)

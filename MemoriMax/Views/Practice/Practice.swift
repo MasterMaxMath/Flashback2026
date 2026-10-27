@@ -107,7 +107,7 @@ struct DailyQuizScreen: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Nothing to quiz yet.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("Save mnemonics to the gallery first — today's quiz will be built from them.")
+                            Text("Save mnemonics to the gallery first. Today's quiz will be built from them.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,7 +182,7 @@ struct YourQuizzesScreen: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("No quizzes yet.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("Build one from any gallery group — it snapshots those mnemonics so you can drill them any time.")
+                            Text("Build one from any gallery group. It snapshots those mnemonics so you can drill them any time.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

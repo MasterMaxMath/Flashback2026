@@ -31,7 +31,7 @@ struct PegBuilderView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("No pegs yet.")
                                 .font(.subheadline).foregroundColor(.white.opacity(0.9))
-                            Text("Pick a peg — 00 sauce, 01 suit, 43 ram — and hang one vivid item on it. Five to fifteen pegs is a good start.")
+                            Text("Pick a peg (00 sauce, 01 suit, 43 ram) and hang one vivid item on it. Five to fifteen pegs is a good start.")
                                 .font(.caption).foregroundColor(.white.opacity(0.65))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

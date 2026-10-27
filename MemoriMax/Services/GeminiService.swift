@@ -63,7 +63,7 @@ enum GeminiService {
         none extra. Example: 404 → "razor" is right when it spans \
         everything (R-Z-R). The phrase should evoke the fact's meaning. \
         Reply with phrases only, never a word that covers less than the \
-        full number.
+        full number. Never use em dashes; use commas or periods instead.
         """
         let prompt = """
         Fact to memorize: "\(fact)". Its number is \(digits). Call to_words \
@@ -194,7 +194,8 @@ enum GeminiService {
         Rules: a single vivid sentence, 15-30 words, present tense, \
         describing a concrete physical scene where ALL of the given objects \
         clearly interact to act out the given meaning. Name every object \
-        directly. No dialogue or abstract ideas.
+        directly. No dialogue or abstract ideas. Never use em dashes; use \
+        commas or periods instead.
         """
         let prompt = """
         Meaning to express: "\(fact)". Scene hint: "\(tie)". The mnemonic \

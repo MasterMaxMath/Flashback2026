@@ -106,7 +106,7 @@ struct ReviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("All caught up.")
                 .font(.title2.bold()).foregroundColor(.white)
-            Text("\(allItems.count) item\(allItems.count == 1 ? "" : "s") in your decks. Come back when a few are due — or review anyway.")
+            Text("\(allItems.count) item\(allItems.count == 1 ? "" : "s") in your decks. Come back when a few are due, or review anyway.")
                 .font(.subheadline).foregroundColor(.white.opacity(0.7))
             Button {
                 buildQueue(forceAll: true)

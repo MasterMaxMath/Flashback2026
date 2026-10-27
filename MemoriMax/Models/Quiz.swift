@@ -66,12 +66,12 @@ final class SavedQuiz {
     }
 
     var bestScore: String {
-        guard let best = attempts.map({ $0.correct }).max() else { return "—" }
+        guard let best = attempts.map({ $0.correct }).max() else { return "None" }
         return "\(best)"
     }
 
     var lastScore: String {
-        guard let last = attempts.last else { return "—" }
+        guard let last = attempts.last else { return "None" }
         return "\(last.correct)/\(last.total)"
     }
 }

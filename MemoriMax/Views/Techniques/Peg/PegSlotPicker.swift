@@ -130,7 +130,7 @@ struct PegSlotPicker: View {
                 .font(.caption.monospaced()).foregroundColor(.white.opacity(0.6))
 
             if cards.isEmpty {
-                Text("No saved scenes yet — type an item above, or create one later with the Major System.")
+                Text("No saved scenes yet. Type an item above, or create one later with the Major System.")
                     .font(.caption).foregroundColor(.white.opacity(0.55))
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)

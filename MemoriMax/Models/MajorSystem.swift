@@ -16,7 +16,7 @@ enum MajorSystem {
 
     // MARK: Cheatsheet (standard Major System)
     static let mappings: [MajorMapping] = [
-        MajorMapping(digit: "0", sounds: "S, Z  (soft C)", examples: "zoo, sea, sauce", tip: "\"Zoo\" starts with a Z — zero starts with Z."),
+        MajorMapping(digit: "0", sounds: "S, Z  (soft C)", examples: "zoo, sea, sauce", tip: "\"Zoo\" starts with a Z, and zero does too."),
         MajorMapping(digit: "1", sounds: "T, D, TH", examples: "tea, toad, thigh", tip: "T and D both need 1 downward stroke to write."),
         MajorMapping(digit: "2", sounds: "N", examples: "Noah, nun, sun", tip: "Lowercase n has 2 humps."),
         MajorMapping(digit: "3", sounds: "M", examples: "Ma, sumo, moon", tip: "Lowercase m has 3 humps."),

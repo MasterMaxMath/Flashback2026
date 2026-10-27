@@ -79,7 +79,7 @@ struct GalleryView: View {
 
             if cards.isEmpty && palaces.isEmpty {
                 VStack(spacing: 12) {
-                    Text("Nothing saved yet — tap Good on a scene to keep it here, on this device.")
+                    Text("Nothing saved yet. Tap Good on a scene to keep it here, on this device.")
                         .font(.subheadline).foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                     Button("Restore demo cards") {
@@ -309,8 +309,8 @@ struct GalleryView: View {
 
         // One scene, two bindings: a razor (404) chases a remote (431).
         let warScene: [MnemonicBinding] = [
-            MnemonicBinding(digits: "431", word: "remote", tie: "The war opens — remote lands clash"),
-            MnemonicBinding(digits: "404", word: "razor", tie: "The war closes — decided on a razor's edge")
+            MnemonicBinding(digits: "431", word: "remote", tie: "The war opens: remote lands clash"),
+            MnemonicBinding(digits: "404", word: "razor", tie: "The war closes, decided on a razor's edge")
         ]
         let demos: [(fact: String, bindings: [MnemonicBinding])] = [
             ("The Peloponnesian War ran 431–404 BC", warScene)
@@ -343,13 +343,13 @@ struct GalleryGroupView: View {
     let tag: String
     let technique: MemoryTechnique
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveTags: SaveTagPresenter
     @Query private var cards: [GalleryCard]
     /// Unfiltered, so the move sheet can offer every group name in use.
     @Query private var allCards: [GalleryCard]
 
     @State private var renameTarget: GalleryCard?
     @State private var renameText = ""
-    @State private var moveTarget: GalleryCard?
 
     init(tag: String, technique: MemoryTechnique) {
         self.tag = tag
@@ -418,25 +418,6 @@ struct GalleryGroupView: View {
         } message: { _ in
             Text("How the scene reads in the gallery.")
         }
-        .sheet(isPresented: Binding(
-            get: { moveTarget != nil },
-            set: { if !$0 { moveTarget = nil } }
-        )) {
-            if let target = moveTarget {
-                SaveTagSheet(
-                    word: target.scene.first?.word ?? "Scene",
-                    fact: target.fact,
-                    existingTags: allTags,
-                    onSave: { picked in
-                        let name = picked.trimmingCharacters(in: .whitespacesAndNewlines)
-                        target.tag = name.isEmpty ? "default" : name
-                        try? modelContext.save()
-                    },
-                    header: "MOVE SCENE",
-                    confirmLabel: "Move to “\(target.scene.first?.word.lowercased() ?? "scene")”"
-                )
-            }
-        }
     }
 
     /// ⋯ menu pinned to the card's top-right: rename, move group, remove.
@@ -449,7 +430,17 @@ struct GalleryGroupView: View {
                 Label("Rename scene", systemImage: "pencil")
             }
             Button {
-                moveTarget = card
+                saveTags.present(
+                    word: card.scene.first?.word ?? "Scene",
+                    fact: card.fact,
+                    existingTags: allTags,
+                    header: "MOVE SCENE",
+                    confirmLabel: "Move to “\(card.scene.first?.word.lowercased() ?? "scene")”"
+                ) { picked in
+                    let name = picked.trimmingCharacters(in: .whitespacesAndNewlines)
+                    card.tag = name.isEmpty ? "default" : name
+                    try? modelContext.save()
+                }
             } label: {
                 Label("Move to another group…", systemImage: "folder")
             }
@@ -526,4 +517,5 @@ func thumbnail(from data: Data?, size: CGFloat) -> some View {
 #Preview {
     NavigationStack { GalleryScreen() }
         .demoModelContainer()
+        .environmentObject(SaveTagPresenter())
 }

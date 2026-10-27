@@ -53,9 +53,9 @@ struct PegIntroView: View {
             Text("A shopping list, the parts of a speech, the planets in order. Without a hook, the middle items fall out.")
                 .pegBody()
 
-            PlaceholderImageView(
-                label: "ART: items slipping out of a torn shopping bag",
-                icon: "list.bullet"
+            ArtworkImageView(
+                name: "torn-grocery-bag",
+                accessibility: "Items slipping out of a torn shopping bag"
             )
         }
     }
@@ -85,7 +85,7 @@ struct PegIntroView: View {
             Text("Peg 43 is a ram. To remember “buy milk”, picture a ram headbutting a giant milk bottle.")
                 .pegBody()
 
-            Text("Big, strange, moving — the same rule as a memory palace.")
+            Text("Big, strange, moving: the same rule as a memory palace.")
                 .pegFootnote()
         }
     }

@@ -1,6 +1,49 @@
 import SwiftUI
+import Combine
 
 // MARK: - Save-to-gallery tag picker
+
+/// Presents the save-to-gallery picker from one stable, app-level anchor.
+///
+/// The picker is shown from screens that live inside scroll views (the
+/// assisted mnemonic flow and the gallery both do). When the sheet itself
+/// was attached down in that scrolling content, focusing the "create a new
+/// group" field made the keyboard re-layout the outer scroll view, and iOS
+/// dismissed the sheet mid-edit. Keeping the presentation at the app root
+/// takes it out of the scrolling hierarchy, so typing a group name is safe.
+final class SaveTagPresenter: ObservableObject {
+    struct Request: Identifiable {
+        let id = UUID()
+        let word: String
+        let fact: String
+        let existingTags: [String]
+        let header: String
+        let confirmLabel: String?
+        let onSave: (String) -> Void
+    }
+
+    @Published var request: Request?
+
+    func present(
+        word: String,
+        fact: String,
+        existingTags: [String],
+        header: String = "SAVE MNEMONIC",
+        confirmLabel: String? = nil,
+        onSave: @escaping (String) -> Void
+    ) {
+        request = Request(
+            word: word,
+            fact: fact,
+            existingTags: existingTags,
+            header: header,
+            confirmLabel: confirmLabel,
+            onSave: onSave
+        )
+    }
+}
+
+// MARK: - Save-to-gallery sheet
 //
 // Shown when the user accepts a scene ("Good"). They pick an existing group
 // (always including "default") or create a new one; the chosen tag is written

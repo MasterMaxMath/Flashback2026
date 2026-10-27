@@ -73,12 +73,12 @@ struct MajorIntroView: View {
             Text("Read them once, look away, and count to ten. Then try to say them back.")
                 .slideBody()
 
-            PlaceholderImageView(
-                label: "ART: digits slipping through open hands",
-                icon: "hand.raised"
+            ArtworkImageView(
+                name: "digits-slipping-through-hands",
+                accessibility: "Digits slipping through open hands"
             )
 
-            Text("Gone or fuzzy? That is not a bad memory — bare digits fade for everyone. This guide fixes exactly that.")
+            Text("Gone or fuzzy? That is not a bad memory. Bare digits fade for everyone. This guide fixes exactly that.")
                 .slideBody()
         }
     }
@@ -90,15 +90,15 @@ struct MajorIntroView: View {
             Text("A razor\nchases a remote.")
                 .slideTitle()
 
-            PlaceholderImageView(
-                label: "SCENE ART: a giant razor dueling a game remote",
-                icon: "film.stack"
+            ArtworkImageView(
+                name: "razor-versus-remote",
+                accessibility: "A giant razor dueling a game remote"
             )
 
             Text("Play that ten-second movie once: a giant buzzing razor chases a game remote across a table. Sparks fly.")
                 .slideBody()
 
-            Text("At the end of this guide I will ask you for those two dates again. You have learned nothing yet — notice how little effort this took.")
+            Text("At the end of this guide I will ask you for those two dates again. You have learned nothing yet. Notice how little effort this took.")
                 .slideFootnote()
         }
     }
@@ -111,9 +111,9 @@ struct MajorIntroView: View {
                 .slideTitle()
 
             VStack(alignment: .leading, spacing: 14) {
-                plainRow(title: "Digits have nothing to hold", text: "431 404 is abstract — your memory drops it within seconds.")
+                plainRow(title: "Digits have nothing to hold", text: "431 404 is abstract, so your memory drops it within seconds.")
                 plainRow(title: "A chase has everything", text: "Big, strange, moving things with sound and motion are what memory is built to keep.")
-                plainRow(title: "The trick", text: "Hide each date inside one word, then let the words act out one scene. You replay the scene — the dates come along for free.")
+                plainRow(title: "The trick", text: "Hide each date inside one word, then let the words act out one scene. You replay the scene, and the dates come along for free.")
             }
             .padding(24).cardStyle()
 
@@ -132,12 +132,12 @@ struct MajorIntroView: View {
             VStack(alignment: .leading, spacing: 12) {
                 codeBreakdown(word: "moon",
                               pairs: [("m", "3"), ("o", "–"), ("o", "–"), ("n", "2")])
-                Text("Read left to right. The counting sounds hand you digits in order — moon hands you 3, then 2. Vowels glide by and give nothing.")
+                Text("Read left to right. The counting sounds hand you digits in order: moon hands you 3, then 2. Vowels glide by and give nothing.")
                     .font(.body).foregroundColor(.white.opacity(0.85)).lineSpacing(4)
             }
             .padding(24).cardStyle()
 
-            Text("To hide your own dates this way you need ten pairs — they are next, and they are the only thing to memorize.")
+            Text("To hide your own dates this way you need ten pairs. They are next, and they are the only thing to memorize.")
                 .slideFootnote()
         }
     }
@@ -154,7 +154,7 @@ struct MajorIntroView: View {
                 payoffRow(digits: "404", word: "razor")
             }
 
-            Text("The Peloponnesian wars ran 431 to 404 — the exact numbers that slipped away on page one. Same information, but now it lives inside a chase you can replay.")
+            Text("The Peloponnesian wars ran 431 to 404, the exact numbers that slipped away on page one. Same information, but now it lives inside a chase you can replay.")
                 .slideBody()
         }
     }
@@ -221,7 +221,7 @@ struct MajorIntroView: View {
                 tableRow(MajorSystem.mappings[9])
             }
 
-            Text("That is all ten — the alphabet behind the chase you are already holding.")
+            Text("That is all ten: the alphabet behind the chase you are already holding.")
                 .slideFootnote()
 
             NavigationLink(destination: MajorCheatSheetView()) {
@@ -238,9 +238,9 @@ struct MajorIntroView: View {
             Text("Two dates,\none war.")
                 .slideTitle()
 
-            PlaceholderImageView(
-                label: "ART: timeline showing 431 to 404 BC",
-                icon: "calendar"
+            ArtworkImageView(
+                name: "peloponnesian-war-timeline",
+                accessibility: "Timeline showing 431 to 404 BC"
             )
 
             Text("Read each word the way moon taught you, using your ten pairs, and watch the digits fall out.")
@@ -258,7 +258,7 @@ struct MajorIntroView: View {
             VStack(alignment: .leading, spacing: 12) {
                 codeBreakdown(word: "razor",
                               pairs: [("r", "4"), ("a", "–"), ("z", "0"), ("o", "–"), ("r", "4")])
-                Text("R is 4, Z is 0, R is 4. Glide over the A and the O — the date reads out in order.")
+                Text("R is 4, Z is 0, R is 4. Glide over the A and the O, and the date reads out in order.")
                     .font(.body).foregroundColor(.white.opacity(0.85)).lineSpacing(4)
             }
             .padding(24).cardStyle()
@@ -299,9 +299,9 @@ struct MajorIntroView: View {
             Text("Run the chase\none more time.")
                 .slideTitle()
 
-            PlaceholderImageView(
-                label: "SCENE ART: a giant razor dueling a game remote",
-                icon: "film.stack"
+            ArtworkImageView(
+                name: "razor-versus-remote",
+                accessibility: "A giant razor dueling a game remote"
             )
 
             Text("Same movie as page two, now with meaning attached: the chaser is 404, the chased is 431. This replay is what locks both dates in.")
@@ -316,7 +316,7 @@ struct MajorIntroView: View {
             Text("No peeking.\nSay them back.")
                 .slideTitle()
 
-            Text("Look away from the screen. Which two words chased each other — and which dates do they give you?")
+            Text("Look away from the screen. Which two words chased each other, and which dates do they give you?")
                 .slideBody()
 
             Button(finalWordsRevealed ? "razor and remote" : "Reveal the two words") {
@@ -524,6 +524,25 @@ struct PlaceholderImageView: View {
                 .foregroundColor(.white.opacity(0.35))
         )
         .accessibilityLabel("Placeholder image: \(label)")
+    }
+}
+
+// MARK: - Static artwork (finished art dropped into an asset catalog slot)
+
+struct ArtworkImageView: View {
+    let name: String
+    let accessibility: String
+
+    var body: some View {
+        Image(name)
+            .resizable()
+            .scaledToFit()
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.15))
+            )
+            .accessibilityLabel(accessibility)
     }
 }
 

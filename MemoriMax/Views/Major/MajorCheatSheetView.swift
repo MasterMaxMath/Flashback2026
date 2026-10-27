@@ -21,7 +21,7 @@ struct MajorCheatSheetView: View {
                     VStack(spacing: 8) {
                         Text("💡 How to use it")
                             .font(.headline).foregroundColor(.white)
-                        Text("Vowels (A E I O U) and W, H, Y are free — they let you turn bare sounds into real words. Example: 39 = M+P → \"map\", \"mop\", \"mob\". 20 = N+S → \"nose\". Chain words to cover long numbers.")
+                        Text("Vowels (A E I O U) and W, H, Y are free: they let you turn bare sounds into real words. Example: 39 = M+P → \"map\", \"mop\", \"mob\". 20 = N+S → \"nose\". Chain words to cover long numbers.")
                             .font(.subheadline).foregroundColor(.white.opacity(0.85))
                             .multilineTextAlignment(.center)
                     }

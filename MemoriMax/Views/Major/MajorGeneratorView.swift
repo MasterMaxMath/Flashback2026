@@ -69,7 +69,7 @@ struct MajorGeneratorView: View {
     private var algorithmResults: some View {
         VStack(spacing: 14) {
             if result.digits.isEmpty {
-                Text("Type digits above to get instant word matches — fully offline.")
+                Text("Type digits above to get instant word matches, fully offline.")
                     .font(.subheadline).foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center).padding()
             } else {
@@ -152,4 +152,5 @@ struct MajorGeneratorView: View {
 #Preview {
     NavigationStack { MajorGeneratorView() }
         .demoModelContainer()
+        .environmentObject(SaveTagPresenter())
 }
